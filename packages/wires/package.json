@@ -1,5 +1,5 @@
 {
-  "name": "wires",
+  "name": "@pbzona/wires",
   "version": "0.1.0",
   "description": "A human-readable TypeScript toolkit for learning digital logic by building it from NAND gates up.",
   "keywords": [
@@ -10,12 +10,22 @@
     "logic-gates",
     "circuit-simulator"
   ],
-  "type": "module",
   "license": "MIT",
+  "author": "Phil Zona",
+  "homepage": "https://github.com/pbzona/wires#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pbzona/wires.git",
+    "directory": "packages/wires"
+  },
+  "bugs": {
+    "url": "https://github.com/pbzona/wires/issues"
+  },
+  "type": "module",
   "sideEffects": false,
   "files": [
     "dist",
-    "README.md"
+    "src"
   ],
   "exports": {
     ".": {
@@ -25,18 +35,26 @@
     "./components": {
       "types": "./dist/components/index.d.ts",
       "import": "./dist/components/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "examples": "pnpm build && node examples/01-gates.ts && node examples/02-composition.ts && node examples/03-four-bit-adder.ts && node examples/04-sr-latch.ts"
+    "examples": "pnpm build && node examples/01-gates.ts && node examples/02-composition.ts && node examples/03-four-bit-adder.ts && node examples/04-sr-latch.ts",
+    "prepack": "pnpm build",
+    "prepublishOnly": "pnpm typecheck && pnpm test"
   },
   "engines": {
-    "node": ">=22.18"
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -37,7 +37,7 @@ The simulator never resolves `"X"` to `0` or `1` on its own. A latch that has ne
 Signals are the numbers `0` and `1`, not JavaScript booleans, and the library never relies on truthiness. Compare with `===`:
 
 ```ts
-import { gate } from "wires";
+import { gate } from "@pbzona/wires";
 
 const AND3 = gate({
   name: "AND3",

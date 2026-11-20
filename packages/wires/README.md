@@ -49,15 +49,18 @@ produce large generated or optimized netlists.
 ## Install
 
 ```sh
-pnpm add wires   # or npm install wires / bun add wires
+pnpm add @pbzona/wires   # or npm install @pbzona/wires / bun add @pbzona/wires
 ```
 
 There are two entry points:
 
-| Import             | Contents                                                                                                                    |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `wires`            | the engine: `gate`, `circuit`, `simulate`, `elaborate`, errors, types                                                       |
-| `wires/components` | the standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
+| Import                     | Contents                                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `@pbzona/wires`            | the engine: `gate`, `circuit`, `simulate`, `elaborate`, errors, types                                                       |
+| `@pbzona/wires/components` | the standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
+
+Requires Node.js 22 or later, Bun, or any modern browser or bundler. The
+package is ESM only and has no runtime dependencies.
 
 ## Signals
 
@@ -70,7 +73,7 @@ Every signal starts as `X`. Logic compares values with strict equality.
 ## Defining a primitive gate
 
 ```ts
-import { gate, simulate } from "wires";
+import { gate, simulate } from "@pbzona/wires";
 
 const NAND = gate({
   name: "NAND",
@@ -93,8 +96,8 @@ zero inputs (a constant source).
 ## Composing circuits
 
 ```ts
-import { circuit, simulate } from "wires";
-import { NAND } from "wires/components";
+import { circuit, simulate } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const NOT = circuit(
   { name: "NOT", inputs: ["a"], outputs: ["out"] },
@@ -139,8 +142,8 @@ Feedback needs `feed`, because a part's input can't be wired to something that
 hasn't been added yet:
 
 ```ts
-import { circuit } from "wires";
-import { NAND } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
@@ -165,8 +168,8 @@ contain itself.
 ## A four-bit adder
 
 ```ts
-import { circuit, simulate, type SourcePort } from "wires";
-import { FullAdder } from "wires/components";
+import { circuit, simulate, type SourcePort } from "@pbzona/wires";
+import { FullAdder } from "@pbzona/wires/components";
 
 const Adder4 = circuit(
   {
@@ -198,8 +201,8 @@ sim.readAll(); // { s0: 1, s1: 1, s2: 1, s3: 0, carryOut: 0 } = 7
 ## Sequential logic
 
 ```ts
-import { simulate, StabilizationError } from "wires";
-import { SRLatch } from "wires/components";
+import { simulate, StabilizationError } from "@pbzona/wires";
+import { SRLatch } from "@pbzona/wires/components";
 
 let latch = simulate(SRLatch);
 
@@ -387,7 +390,7 @@ node examples/04-sr-latch.ts       # one bit of memory
 pnpm examples
 ```
 
-The examples import `wires` by name, which resolves to the built `dist/`. They
+The examples import `@pbzona/wires` by name, which resolves to the built `dist/`. They
 run directly on Node ≥ 22.18 (native type stripping) or Bun.
 
 ## Development
@@ -404,5 +407,5 @@ pnpm build       # emits dist/ with .d.ts files
 
 Or run everything for every package from the root with `pnpm check`.
 
-[DESIGN.md](./DESIGN.md) covers the internal representation and where the
+[DESIGN.md](https://github.com/pbzona/wires/blob/main/packages/wires/DESIGN.md) covers the internal representation and where the
 implementation deviates from the original specification.

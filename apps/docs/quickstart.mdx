@@ -9,25 +9,25 @@ icon: "rocket"
 <CodeGroup>
 
 ```bash pnpm
-pnpm add wires
+pnpm add @pbzona/wires
 ```
 
 ```bash npm
-npm install wires
+npm install @pbzona/wires
 ```
 
 ```bash bun
-bun add wires
+bun add @pbzona/wires
 ```
 
 </CodeGroup>
 
-The package has two entry points:
+`wires` is published on npm as `@pbzona/wires`. It needs Node.js 22 or later, Bun, or any modern browser or bundler, and it has no runtime dependencies. The package has two entry points:
 
 | Import | Contents |
 | --- | --- |
-| `wires` | The engine: `gate`, `circuit`, `simulate`, `elaborate`, errors and types |
-| `wires/components` | The standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
+| `@pbzona/wires` | The engine: `gate`, `circuit`, `simulate`, `elaborate`, errors and types |
+| `@pbzona/wires/components` | The standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
 
 ## Build and simulate a circuit
 
@@ -36,7 +36,7 @@ The package has two entry points:
     A primitive has an explicit evaluation function. Here is NAND, the only gate you need to build everything else.
 
     ```ts
-    import { gate } from "wires";
+    import { gate } from "@pbzona/wires";
 
     export const NAND = gate({
       name: "NAND",
@@ -48,15 +48,15 @@ The package has two entry points:
     });
     ```
 
-    `wires/components` exports this exact gate, so the next steps import it from there.
+    `@pbzona/wires/components` exports this exact gate, so the next steps import it from there.
   </Step>
 
   <Step title="Compose it into a circuit">
     A composite circuit adds parts one at a time, saying what feeds each part's inputs, then says what drives its outputs.
 
     ```ts
-    import { circuit } from "wires";
-    import { NAND } from "wires/components";
+    import { circuit } from "@pbzona/wires";
+    import { NAND } from "@pbzona/wires/components";
 
     export const AND = circuit(
       { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
@@ -75,8 +75,8 @@ The package has two entry points:
     A simulation is a sequence of states. `simulate()` gives you the first one, and `set()` and `run()` each return a new state. The old state never changes.
 
     ```ts
-    import { simulate } from "wires";
-    import { AND } from "wires/components";
+    import { simulate } from "@pbzona/wires";
+    import { AND } from "@pbzona/wires/components";
 
     let sim = simulate(AND);
 
@@ -94,8 +94,8 @@ The package has two entry points:
     Every state can report the value of every port in the hierarchy, and with tracing on, every change that led to it.
 
     ```ts
-    import { simulate } from "wires";
-    import { AND } from "wires/components";
+    import { simulate } from "@pbzona/wires";
+    import { AND } from "@pbzona/wires/components";
 
     const settled = simulate(AND, { trace: true }).set({ a: 1, b: 1 }).run();
 

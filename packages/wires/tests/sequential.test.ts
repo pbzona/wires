@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NAND, NOT, SRLatch } from "wires/components";
-import { StabilizationError, circuit, simulate } from "wires";
+import { NAND, NOT, SRLatch } from "@pbzona/wires/components";
+import { StabilizationError, circuit, simulate } from "@pbzona/wires";
 
 /** NAND(enable, feedback) followed by two inverters, fed back: a three-stage ring oscillator. */
 const RingOscillator = circuit(

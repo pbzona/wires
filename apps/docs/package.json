@@ -11,6 +11,6 @@
     "@types/node": "^26.6.6",
     "mint": "^4.3.76",
     "typescript": "^7.0.2",
-    "wires": "workspace:*"
+    "@pbzona/wires": "workspace:*"
   }
 }

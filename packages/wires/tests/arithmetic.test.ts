@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Demux, FullAdder, HalfAdder, Mux } from "wires/components";
+import { Demux, FullAdder, HalfAdder, Mux } from "@pbzona/wires/components";
 import { binaryCombinations, evaluate } from "./helpers.js";
 
 describe("arithmetic", () => {

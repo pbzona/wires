@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FullAdder } from "wires/components";
-import { type Signal, type SourcePort, circuit, elaborate, simulate } from "wires";
+import { FullAdder } from "@pbzona/wires/components";
+import { type Signal, type SourcePort, circuit, elaborate, simulate } from "@pbzona/wires";
 
 const WIDTH = 4;
 

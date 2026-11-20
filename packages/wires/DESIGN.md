@@ -77,8 +77,9 @@ the same inputs. Copying one array per step is negligible at learning scale.
 
 ## Deviations and clarifications
 
-- **Package name** is `wires`. The component library ships as the separate
-  subpath export `wires/components`, keeping it apart from the engine.
+- **Package name** is `@pbzona/wires` on npm (the project is called `wires`).
+  The component library ships as the separate subpath export
+  `@pbzona/wires/components`, keeping it apart from the engine.
 - **Auto-generated instance names** take the form `<Definition>#<n>` (for
   example `XOR#0`). Explicit names must be identifiers, so they can never
   collide with generated ones. `inputs` and `outputs` are reserved instance

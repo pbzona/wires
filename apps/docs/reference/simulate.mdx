@@ -78,8 +78,8 @@ A frozen object describing one moment of the simulation. Methods that move the s
 ## Example
 
 ```ts
-import { simulate } from "wires";
-import { AND } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { AND } from "@pbzona/wires/components";
 
 const start = simulate(AND);
 const settled = start.set({ a: 1, b: 1 }).run();

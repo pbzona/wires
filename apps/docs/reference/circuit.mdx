@@ -56,8 +56,8 @@ Every wiring call reads **destination ← source**.
 ## Example
 
 ```ts
-import { circuit } from "wires";
-import { NAND, NOT } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { NAND, NOT } from "@pbzona/wires/components";
 
 const AND = circuit(
   { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
@@ -72,8 +72,8 @@ const AND = circuit(
 With feedback:
 
 ```ts
-import { circuit } from "wires";
-import { NAND } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },

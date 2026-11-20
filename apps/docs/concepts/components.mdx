@@ -34,8 +34,8 @@ Definitions are frozen and hold no simulation state, so you can share one defini
 When a circuit calls `add(definition, name?, inputs?)`, it creates a `ComponentInstance`, which is one part made from that definition. Two parts made from the same definition are fully independent. They have different names, different hierarchical paths and separate signal values.
 
 ```ts
-import { circuit } from "wires";
-import { NOT } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { NOT } from "@pbzona/wires/components";
 
 const TwoInverters = circuit(
   { name: "TwoInverters", inputs: ["a", "b"], outputs: ["x", "y"] },

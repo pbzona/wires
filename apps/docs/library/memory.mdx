@@ -16,8 +16,8 @@ A set-reset latch made of two cross-coupled NAND gates, with **active-low** cont
 | 0 | 0 | 1 | 1 | Forbidden: not a valid stored state |
 
 ```ts
-import { simulate } from "wires";
-import { SRLatch } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { SRLatch } from "@pbzona/wires/components";
 
 const latch = simulate(SRLatch)
   .set({ setN: 0, resetN: 1 }) // set

@@ -63,8 +63,8 @@ Returns the flattened, deeply frozen and serializable graph that the simulator r
 ## Example
 
 ```ts
-import { elaborate } from "wires";
-import { AND } from "wires/components";
+import { elaborate } from "@pbzona/wires";
+import { AND } from "@pbzona/wires/components";
 
 const netlist = elaborate(AND);
 const wire = netlist.wires.find((w) => w.id === "root.nand.outputs.out");

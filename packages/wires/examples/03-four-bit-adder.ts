@@ -1,7 +1,7 @@
 // A four-bit ripple-carry adder built from standard full adders.
 // Run: pnpm build && node examples/03-four-bit-adder.ts
-import { circuit, elaborate, simulate, type Signal, type SourcePort } from "wires";
-import { FullAdder } from "wires/components";
+import { circuit, elaborate, simulate, type Signal, type SourcePort } from "@pbzona/wires";
+import { FullAdder } from "@pbzona/wires/components";
 
 const Adder4 = circuit(
   {

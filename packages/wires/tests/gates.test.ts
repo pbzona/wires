@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AND, NAND, NOR, NOT, OR, XNOR, XOR } from "wires/components";
-import { type Signal, SimulationError, circuit, gate, simulate } from "wires";
+import { AND, NAND, NOR, NOT, OR, XNOR, XOR } from "@pbzona/wires/components";
+import { type Signal, SimulationError, circuit, gate, simulate } from "@pbzona/wires";
 import { binaryCombinations, bit, evaluate } from "./helpers.js";
 
 describe("NAND primitive", () => {

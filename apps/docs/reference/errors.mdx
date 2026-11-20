@@ -77,8 +77,8 @@ States are never modified, so after any error the state you called the method on
 ## Handling errors
 
 ```ts
-import { CircuitError, SimulationError, StabilizationError, WiresError, simulate } from "wires";
-import { SRLatch } from "wires/components";
+import { CircuitError, SimulationError, StabilizationError, WiresError, simulate } from "@pbzona/wires";
+import { SRLatch } from "@pbzona/wires/components";
 
 try {
   const forbidden = simulate(SRLatch, { maxTicks: 20 }).set({ setN: 0, resetN: 0 }).run();

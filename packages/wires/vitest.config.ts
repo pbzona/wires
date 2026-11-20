@@ -5,8 +5,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: [
-      { find: /^wires\/components$/, replacement: fileURLToPath(new URL("./src/components/index.ts", import.meta.url)) },
-      { find: /^wires$/, replacement: fileURLToPath(new URL("./src/index.ts", import.meta.url)) },
+      { find: /^@pbzona\/wires\/components$/, replacement: fileURLToPath(new URL("./src/components/index.ts", import.meta.url)) },
+      { find: /^@pbzona\/wires$/, replacement: fileURLToPath(new URL("./src/index.ts", import.meta.url)) },
     ],
   },
   test: {

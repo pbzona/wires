@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AND, HalfAdder, SRLatch } from "wires/components";
-import { elaborate, simulate } from "wires";
+import { AND, HalfAdder, SRLatch } from "@pbzona/wires/components";
+import { elaborate, simulate } from "@pbzona/wires";
 
 describe("topology", () => {
   it("describes nested standard components", () => {

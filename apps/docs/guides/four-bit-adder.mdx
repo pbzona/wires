@@ -16,8 +16,8 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
     Each stage's carry out feeds the next stage's carry in. A `SourcePort` variable tracks the carry as the loop runs.
 
     ```ts
-    import { circuit, type SourcePort } from "wires";
-    import { FullAdder } from "wires/components";
+    import { circuit, type SourcePort } from "@pbzona/wires";
+    import { FullAdder } from "@pbzona/wires/components";
 
     export const Adder4 = circuit(
       {
@@ -42,8 +42,8 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
 
   <Step title="Add some numbers">
     ```ts
-    import { circuit, simulate, type Signal, type SourcePort } from "wires";
-    import { FullAdder } from "wires/components";
+    import { circuit, simulate, type Signal, type SourcePort } from "@pbzona/wires";
+    import { FullAdder } from "@pbzona/wires/components";
 
     const Adder4 = circuit(
       {
@@ -107,7 +107,7 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
     [`elaborate()`](/reference/elaborate) flattens the hierarchy into primitive gates:
 
     ```ts
-    const netlist = elaborate(Adder4); // import { elaborate } from "wires"
+    const netlist = elaborate(Adder4); // import { elaborate } from "@pbzona/wires"
     console.log(netlist.gates.length); // 60
     console.log(netlist.outputs.carryOut); // "root.fa3.or.nand.outputs.out"
     ```

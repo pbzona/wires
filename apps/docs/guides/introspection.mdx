@@ -18,7 +18,7 @@ Introspection is a first-class feature. There are four views, each serializable 
 `describe()` returns a `ComponentDescription` tree rooted at `"root"`:
 
 ```ts
-import { AND } from "wires/components";
+import { AND } from "@pbzona/wires/components";
 
 const d = AND.describe();
 console.log(d.components.map((c) => `${c.id} (${c.definition}, ${c.kind})`));
@@ -40,8 +40,8 @@ A wire is named after its driver. In `AND`, the wire leaving the inner NAND is c
 [`elaborate()`](/reference/elaborate) returns the flattened graph that the simulator actually runs:
 
 ```ts
-import { elaborate } from "wires";
-import { AND } from "wires/components";
+import { elaborate } from "@pbzona/wires";
+import { AND } from "@pbzona/wires/components";
 
 const netlist = elaborate(AND);
 console.log(netlist.gates.map((g) => g.path)); // ["root.nand", "root.not.g"]
@@ -57,8 +57,8 @@ Each wire lists its driver, every port on it, and the gates that read it. That's
 `inspect()` turns a simulation state into plain data:
 
 ```ts
-import { simulate } from "wires";
-import { AND } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { AND } from "@pbzona/wires/components";
 
 const settled = simulate(AND).set({ a: 1, b: 1 }).run();
 console.log(settled.inspect());
@@ -107,8 +107,8 @@ The state itself is immutable, and each snapshot is a fresh plain object.
 Enable tracing with `simulate(definition, { trace: true })`. It's off by default to save memory.
 
 ```ts
-import { simulate } from "wires";
-import { AND } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { AND } from "@pbzona/wires/components";
 
 const settled = simulate(AND, { trace: true }).set({ a: 1, b: 1 }).run();
 console.log(settled.trace());

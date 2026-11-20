@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AND, NAND, NOT, SRLatch } from "wires/components";
+import { AND, NAND, NOT, SRLatch } from "@pbzona/wires/components";
 import {
   CircuitError,
   circuit,
@@ -7,7 +7,7 @@ import {
   type ComponentDefinition,
   type ComponentInstance,
   type SourcePort,
-} from "wires";
+} from "@pbzona/wires";
 
 const BUF = gate({ name: "BUF", inputs: ["a"], outputs: ["out"], evaluate: ({ a }) => ({ out: a }) });
 

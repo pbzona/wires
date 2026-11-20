@@ -23,8 +23,8 @@ The library's only primitive.
 | X | X | X |
 
 ```ts
-import { simulate } from "wires";
-import { NAND } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const sim = simulate(NAND).set({ a: 0 }).run(); // b stays "X"
 console.log(sim.read("out")); // 1, because a 0 input dominates

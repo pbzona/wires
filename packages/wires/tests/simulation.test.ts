@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AND, NAND, NOT, SRLatch, XOR } from "wires/components";
+import { AND, NAND, NOT, SRLatch, XOR } from "@pbzona/wires/components";
 import {
   type ComponentDefinition,
   type ComponentInstance,
@@ -10,7 +10,7 @@ import {
   elaborate,
   gate,
   simulate,
-} from "wires";
+} from "@pbzona/wires";
 
 const Wire = circuit({ name: "Wire", inputs: ["a"], outputs: ["out"] }, ({ inputs, output }) => {
   output("out", inputs.a);

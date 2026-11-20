@@ -1,7 +1,7 @@
 // Sequential logic: a NAND SR latch remembers one bit.
 // Run: pnpm build && node examples/04-sr-latch.ts
-import { simulate, StabilizationError, type Signal } from "wires";
-import { SRLatch } from "wires/components";
+import { simulate, StabilizationError, type Signal } from "@pbzona/wires";
+import { SRLatch } from "@pbzona/wires/components";
 
 type Inputs = { setN?: Signal; resetN?: Signal };
 

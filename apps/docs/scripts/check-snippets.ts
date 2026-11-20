@@ -1,11 +1,11 @@
 // Extracts every self-contained TypeScript example from the docs, type-checks
-// them against the workspace `wires` package, then runs each one with Node.
+// them against the workspace `@pbzona/wires` package, then runs each one with Node.
 //
 // A code block is checked when its language is `ts` or `typescript` and its
-// first line is an `import` from "wires" or "wires/components". Fragments that
-// don't start with an import are documentation-only and skipped.
+// first line is an `import` from "@pbzona/wires" or "@pbzona/wires/components".
+// Fragments that don't start with an import are documentation-only and skipped.
 //
-// Run: pnpm --filter docs test   (requires `wires` to be built; turbo does this)
+// Run: pnpm --filter docs test   (requires `@pbzona/wires` to be built; turbo does this)
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -36,7 +36,7 @@ function extract(page: string): Snippet[] {
     let j = i + 1;
     for (; j < lines.length && !/^\s*```\s*$/.test(lines[j]!); j++) body.push(lines[j]!.slice(indent));
     const code = body.join("\n");
-    if (/^import\b[^\n]*from "wires(\/components)?";/.test(code)) {
+    if (/^import\b[^\n]*from "@pbzona\/wires(\/components)?";/.test(code)) {
       const name = relative(docsRoot, page).replace(/\.mdx$/, "").replace(/[\\/]/g, "__");
       snippets.push({ page: relative(docsRoot, page), line: i + 1, file: `${name}__L${i + 1}.ts`, code });
     }

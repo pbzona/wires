@@ -11,8 +11,8 @@ Combinational circuits forget. Feed an output back into an input and a circuit c
 The standard [`SRLatch`](/library/memory) is two cross-coupled NAND gates with active-low controls:
 
 ```ts
-import { circuit } from "wires";
-import { NAND } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
@@ -31,8 +31,8 @@ const SRLatch = circuit(
 ## Storing a bit
 
 ```ts
-import { simulate } from "wires";
-import { SRLatch } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { SRLatch } from "@pbzona/wires/components";
 
 let latch = simulate(SRLatch);
 
@@ -66,8 +66,8 @@ A latch that has never been set or reset settles into a **stable unknown** state
 Holding both controls low drives both outputs to `1`. That isn't a complementary state, so it can't be stored. Releasing both controls in the same tick starts a race: both gates flip to `0` together, then back to `1` together, forever. `run()` detects this and throws a `StabilizationError` instead of quietly choosing a winner.
 
 ```ts
-import { simulate, StabilizationError } from "wires";
-import { SRLatch } from "wires/components";
+import { simulate, StabilizationError } from "@pbzona/wires";
+import { SRLatch } from "@pbzona/wires/components";
 
 const forbidden = simulate(SRLatch, { maxTicks: 50 }).set({ setN: 0, resetN: 0 }).run();
 console.log(forbidden.readAll()); // { q: 1, qBar: 1 }
@@ -84,8 +84,8 @@ try {
 An odd number of inverters in a loop has no stable state. This ring oscillator gates its loop with a NAND, so it can be held still while `enable = 0`:
 
 ```ts
-import { circuit, simulate, StabilizationError } from "wires";
-import { NAND, NOT } from "wires/components";
+import { circuit, simulate, StabilizationError } from "@pbzona/wires";
+import { NAND, NOT } from "@pbzona/wires/components";
 
 const Ring = circuit({ name: "Ring", inputs: ["enable"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
   const gate = add(NAND, "gate", { a: inputs.enable }); // b is fed back from inv2

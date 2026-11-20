@@ -17,8 +17,8 @@
     "types": ["node"],
     "rootDir": ".",
     "paths": {
-      "wires": ["./src/index.ts"],
-      "wires/components": ["./src/components/index.ts"]
+      "@pbzona/wires": ["./src/index.ts"],
+      "@pbzona/wires/components": ["./src/components/index.ts"]
     }
   },
   "include": ["src", "tests", "examples", "vitest.config.ts"]

@@ -15,8 +15,8 @@ Selects one of two inputs: `out = a` when `select = 0`, and `out = b` when `sele
 | X | X, unless both data paths are forced (for example `a = b = 0`) |
 
 ```ts
-import { simulate } from "wires";
-import { Mux } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { Mux } from "@pbzona/wires/components";
 
 const sim = simulate(Mux).set({ a: 0, b: 1, select: 1 }).run();
 console.log(sim.read("out")); // 1
@@ -38,8 +38,8 @@ Routes `in` to output `a` when `select = 0`, or to output `b` when `select = 1`.
 | 1 | 1 | 0 | 1 |
 
 ```ts
-import { simulate } from "wires";
-import { Demux } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { Demux } from "@pbzona/wires/components";
 
 const sim = simulate(Demux).set({ in: 1, select: 0 }).run();
 console.log(sim.readAll()); // { a: 1, b: 0 }

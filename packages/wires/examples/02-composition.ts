@@ -1,7 +1,7 @@
 // Composing circuits from NAND, then inspecting topology, state and trace.
 // Run: pnpm build && node examples/02-composition.ts
-import { circuit, simulate } from "wires";
-import { NAND } from "wires/components";
+import { circuit, simulate } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
   const g = add(NAND, "g", { a: inputs.a, b: inputs.a });

@@ -7,8 +7,8 @@ icon: "layers"
 A composite circuit is defined with [`circuit()`](/reference/circuit): a spec with its name and external ports, plus a builder callback that adds parts and wires them together.
 
 ```ts
-import { circuit, simulate } from "wires";
-import { NAND } from "wires/components";
+import { circuit, simulate } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
   const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
@@ -69,8 +69,8 @@ Explicit names make hierarchical paths readable (`root.fa3.or` rather than `root
 Sometimes a part needs a signal from a part that comes later. Memory works this way. Leave that input out of the `add` call, then wire it with `feed` once the source exists:
 
 ```ts
-import { circuit } from "wires";
-import { NAND } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },

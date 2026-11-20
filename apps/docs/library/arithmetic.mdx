@@ -16,8 +16,8 @@ Adds two bits. `sum = a XOR b` and `carry = a AND b`. Children: `xor`, `and`.
 | 1 | 1 | 0 | 1 |
 
 ```ts
-import { circuit } from "wires";
-import { AND, XOR } from "wires/components";
+import { circuit } from "@pbzona/wires";
+import { AND, XOR } from "@pbzona/wires/components";
 
 const HalfAdder = circuit(
   { name: "HalfAdder", inputs: ["a", "b"], outputs: ["sum", "carry"] },
@@ -46,8 +46,8 @@ Adds three bits. It is built from two half adders and an OR gate. Children: `fir
 | 1 | 1 | 1 | 1 | 1 |
 
 ```ts
-import { simulate } from "wires";
-import { FullAdder } from "wires/components";
+import { simulate } from "@pbzona/wires";
+import { FullAdder } from "@pbzona/wires/components";
 
 const sim = simulate(FullAdder).set({ a: 1, b: 1, carryIn: 1 }).run();
 console.log(sim.readAll()); // { sum: 1, carryOut: 1 }

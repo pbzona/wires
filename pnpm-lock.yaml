@@ -14,6 +14,9 @@ importers:
 
   apps/docs:
     devDependencies:
+      '@pbzona/wires':
+        specifier: workspace:*
+        version: link:../../packages/wires
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
@@ -23,9 +26,6 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
-      wires:
-        specifier: workspace:*
-        version: link:../../packages/wires
 
   packages/wires:
     devDependencies:

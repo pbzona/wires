@@ -1,6 +1,6 @@
 // Defining a primitive gate and simulating it.
 // Run: pnpm build && node examples/01-gates.ts
-import { gate, simulate, type Signal } from "wires";
+import { gate, simulate, type Signal } from "@pbzona/wires";
 
 const NAND = gate({
   name: "NAND",

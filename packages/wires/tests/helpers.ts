@@ -1,4 +1,4 @@
-import { type ComponentDefinition, type Signal, simulate } from "wires";
+import { type ComponentDefinition, type Signal, simulate } from "@pbzona/wires";
 
 /** Simulates `definition` from a fresh state with the given inputs until stable. */
 export function evaluate<I extends string, O extends string>(
