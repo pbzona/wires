@@ -43,12 +43,6 @@ export type SourcePort = Port<string, Direction, "source">;
 /** A port that can be driven by a connection in the current scope. */
 export type SinkPort = Port<string, Direction, "sink">;
 
-/** A directed connection from a source port to a destination port. */
-export interface Connection {
-  readonly source: SourcePort;
-  readonly destination: SinkPort;
-}
-
 /** Reusable, immutable definition of a primitive gate or a composite circuit. */
 export interface ComponentDefinition<I extends string = string, O extends string = string> {
   readonly kind: "primitive" | "composite";

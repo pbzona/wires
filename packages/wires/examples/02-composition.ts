@@ -3,20 +3,15 @@
 import { circuit, simulate } from "wires";
 import { NAND } from "wires/components";
 
-const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const g = add(NAND, "g");
-  connect(inputs.a, g.inputs.a);
-  connect(inputs.a, g.inputs.b);
-  connect(g.outputs.out, outputs.out);
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
+  output("out", g.outputs.out);
 });
 
-const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const nand = add(NAND, "nand");
-  const not = add(NOT, "not");
-  connect(inputs.a, nand.inputs.a);
-  connect(inputs.b, nand.inputs.b);
-  connect(nand.outputs.out, not.inputs.a);
-  connect(not.outputs.out, outputs.out);
+const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+  const not = add(NOT, "not", { a: nand.outputs.out });
+  output("out", not.outputs.out);
 });
 
 const sim = simulate(AND, { trace: true });

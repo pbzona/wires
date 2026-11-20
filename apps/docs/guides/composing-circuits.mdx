@@ -1,33 +1,25 @@
 ---
 title: "Composing circuits"
-description: "Build composite circuits with add and connect, at any depth."
+description: "Build composite circuits by adding parts and saying what feeds them."
 icon: "layers"
 ---
 
-A composite circuit is defined with [`circuit()`](/reference/circuit): a spec with its name and external ports, plus a builder callback that adds components and connects them.
+A composite circuit is defined with [`circuit()`](/reference/circuit): a spec with its name and external ports, plus a builder callback that adds parts and wires them together.
 
 ```ts
 import { circuit, simulate } from "wires";
 import { NAND } from "wires/components";
 
-const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const g = add(NAND, "g");
-  connect(inputs.a, g.inputs.a);
-  connect(inputs.a, g.inputs.b);
-  connect(g.outputs.out, outputs.out);
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
+  output("out", g.outputs.out);
 });
 
-const AND = circuit(
-  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const nand = add(NAND, "nand");
-    const not = add(NOT, "not"); // composites are added exactly like primitives
-    connect(inputs.a, nand.inputs.a);
-    connect(inputs.b, nand.inputs.b);
-    connect(nand.outputs.out, not.inputs.a);
-    connect(not.outputs.out, outputs.out);
-  },
-);
+const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+  const not = add(NOT, "not", { a: nand.outputs.out }); // composites are added exactly like primitives
+  output("out", not.outputs.out);
+});
 
 const sim = simulate(AND);
 sim.set({ a: 1, b: 1 });
@@ -35,61 +27,84 @@ sim.run();
 console.log(sim.read("out")); // 1
 ```
 
+Read it top to bottom. Each line adds one part and says what feeds each of its inputs, so the signal flows down the page: the circuit's inputs feed `nand`, `nand` feeds `not`, and `not` drives the output.
+
 ## The builder context
 
 | Member | Description |
 | --- | --- |
-| `inputs` | The circuit's external inputs. Inside the circuit they are sources. |
-| `outputs` | The circuit's external outputs. Inside the circuit they are sinks. |
-| `add(definition, name?)` | Instantiates a primitive or composite and returns its instance |
-| `connect(source, destination)` | Connects a source port to a sink port and returns the connection |
+| `inputs` | The circuit's own inputs. Use them as sources for the parts you add. |
+| `add(definition, name?, inputs?)` | Adds a part (primitive or composite), wires the inputs you list, and returns it |
+| `feed(part.inputs.x, source)` | Wires an input of a part you already added. Used for feedback. |
+| `output(name, source)` | Drives one of the circuit's own outputs |
 
-`add` doesn't care whether a definition is primitive or composite. Nesting depth is unlimited.
+Every wiring call reads **destination ← source**, like an assignment:
 
-## Naming instances
+```ts
+add(NOT, "not", { a: nand.outputs.out }); // not's input a  ← nand's output
+feed(top.inputs.b, bottom.outputs.out);   // top's input b  ← bottom's output
+output("out", not.outputs.out);           // circuit's out  ← not's output
+```
 
-Instance names are optional:
+`add` doesn't care whether a definition is primitive or composite, and nesting depth is unlimited.
+
+## Sources
+
+A **source** is anything that can drive a wire:
+
+- the circuit's own inputs (`inputs.a`)
+- the outputs of parts you've added (`nand.outputs.out`)
+
+A part's inputs are never sources: they receive a signal, they don't produce one. One source can feed any number of inputs (fan-out), but each input has exactly one source.
+
+## Naming parts
+
+Part names are optional:
 
 - **Explicit names** must be identifiers and unique within the circuit. `inputs` and `outputs` are reserved.
-- **Generated names** have the form `<Definition>#<n>`, counted per definition in the order you call `add`, for example `XOR#0` and `XOR#1`. They can never collide with explicit names, because `#` isn't allowed in an identifier.
+- **Generated names** have the form `<Definition>#<n>`, counted per definition in the order you call `add`, for example `XOR#0` and `XOR#1`. Leave the name out and pass the inputs second: `add(NOT, { a: inputs.a })`.
 
-Explicit names make hierarchical paths more readable (`root.fa3.or` rather than `root.FullAdder#3.OR#0`), so prefer them for anything you plan to inspect.
+Explicit names make hierarchical paths readable (`root.fa3.or` rather than `root.FullAdder#3.OR#0`), so prefer them for anything you plan to inspect.
 
-## Wiring rules
+## Feedback
+
+Sometimes a part needs a signal from a part that comes later. Memory works this way. Leave that input out of the `add` call, then wire it with `feed` once the source exists:
 
 ```ts
 import { circuit } from "wires";
 import { NAND } from "wires/components";
 
-circuit({ name: "Rules", inputs: ["a"], outputs: ["out", "copy"] }, ({ inputs, outputs, add, connect }) => {
-  const g = add(NAND, "g");
-
-  connect(inputs.a, g.inputs.a); // ✓ circuit input to child input
-  connect(inputs.a, g.inputs.b); // ✓ fan-out from one source
-  connect(g.outputs.out, outputs.out); // ✓ child output to circuit output
-  connect(inputs.a, outputs.copy); // ✓ direct input-to-output wire (no delay)
-});
+const SRLatch = circuit(
+  { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
+  ({ inputs, add, feed, output }) => {
+    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
+    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
+    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
+    output("q", top.outputs.out);
+    output("qBar", bottom.outputs.out);
+  },
+);
 ```
 
-Wiring the wrong way round is a compile-time error, and `circuit()` rejects it at runtime too:
+Because feedback is the only time you need `feed`, every feedback wire stands out when you read a circuit. Cycles are never rejected just for being cycles. See [Sequential logic](/guides/sequential-logic) for how they behave.
 
-```ts
-connect(g.inputs.a, outputs.out); // ✗ a child input is not a source
-// Rules: g.inputs.a cannot be a connection source: a component's inputs can only be driven
-```
+The one exception is a loop made only of wires, with no gate anywhere in it. That can happen through pass-through composites, and since such a wire has no driver, it is reported when the circuit is elaborated.
 
-The builder checks the following, and reports problems as a `CircuitError` prefixed with the circuit name:
+## Checks
 
-| Check | When |
+The builder checks your wiring and reports problems as a `CircuitError` prefixed with the circuit name. Most of them are also compile-time errors.
+
+| Check | Example message |
 | --- | --- |
-| Duplicate or invalid instance names | During `add` |
-| Wrong direction (sink used as a source, or the reverse) | During `connect` |
-| Ports that don't exist, or that belong to another circuit's instances | During `connect` |
-| A sink that already has a driver | During `connect` |
-| Child inputs left unconnected | After the builder returns |
-| Circuit outputs left undriven | After the builder returns |
+| Input names the part doesn't have | `C: NAND has no input "c" (its inputs are a, b)` |
+| Ports that don't exist | `C: n.inputs.b is not a port (got undefined); check that the port name exists` |
+| A part's input used as a source | `C: b.inputs.a can't be used as a source for outputs.out: it's a component input, …` |
+| Two sources for one input or output | `C: outputs.out has multiple drivers (inputs.a and inputs.b); …` |
+| Output names the circuit doesn't have | `C: "other" is not an output of C (its outputs are out)` |
+| Ports belonging to another circuit | `C: … belongs to circuit "Other", which is not part of this circuit …` |
+| Duplicate, invalid or reserved part names | `C: Duplicate component instance name "x"` |
 
-All the unconnected inputs and undriven outputs are reported together:
+After the builder returns, every part input that was never wired and every output that was never driven is reported together:
 
 ```text
 HalfBroken: Invalid circuit:
@@ -97,32 +112,10 @@ HalfBroken: Invalid circuit:
   - output outputs.other is not driven
 ```
 
-Unused circuit inputs and unconnected child outputs are fine.
+Unused circuit inputs and unused part outputs are fine.
 
 ## When the builder runs
 
-The builder callback runs **immediately**, inside `circuit()`, and the result is checked before `circuit()` returns. A wiring mistake is reported on the line where you define the circuit, not later when you first simulate it.
+The builder callback runs **immediately**, inside `circuit()`, and the result is checked before `circuit()` returns. A wiring mistake is reported where you define the circuit, not later when you first simulate it.
 
-It also means a circuit can only contain components that already exist. A circuit can never contain itself, so every circuit elaborates into a finite set of gates.
-
-Builders must be synchronous. Returning a promise throws a `CircuitError`. The builder context can't be used after the callback returns.
-
-## Feedback
-
-Connecting an output back into an earlier input is allowed and is never rejected just because it forms a cycle:
-
-```ts
-import { circuit } from "wires";
-import { NAND } from "wires/components";
-
-const Loop = circuit({ name: "Loop", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const n = add(NAND, "n");
-  connect(inputs.a, n.inputs.a);
-  connect(n.outputs.out, n.inputs.b); // feedback
-  connect(n.outputs.out, outputs.out);
-});
-```
-
-The one exception is a loop made only of wires, with no gate anywhere in it. That can happen through pass-through composites, and since such a net has no driver, it is reported during elaboration.
-
-See [Sequential logic](/guides/sequential-logic) for feedback that stores state.
+It also means a circuit can only contain parts that already exist. A circuit can never contain itself, so every circuit elaborates into a finite set of gates. Builders must be synchronous, and the builder context can't be used after the callback returns.

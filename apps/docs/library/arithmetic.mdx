@@ -21,15 +21,11 @@ import { AND, XOR } from "wires/components";
 
 const HalfAdder = circuit(
   { name: "HalfAdder", inputs: ["a", "b"], outputs: ["sum", "carry"] },
-  ({ inputs, outputs, add, connect }) => {
-    const xor = add(XOR, "xor");
-    const and = add(AND, "and");
-    connect(inputs.a, xor.inputs.a);
-    connect(inputs.b, xor.inputs.b);
-    connect(inputs.a, and.inputs.a);
-    connect(inputs.b, and.inputs.b);
-    connect(xor.outputs.out, outputs.sum);
-    connect(and.outputs.out, outputs.carry);
+  ({ inputs, add, output }) => {
+    const xor = add(XOR, "xor", { a: inputs.a, b: inputs.b });
+    const and = add(AND, "and", { a: inputs.a, b: inputs.b });
+    output("sum", xor.outputs.out);
+    output("carry", and.outputs.out);
   },
 );
 ```

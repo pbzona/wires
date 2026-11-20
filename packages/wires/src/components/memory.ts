@@ -17,14 +17,11 @@ import { NAND } from "./gates.js";
  */
 export const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
-  ({ inputs, outputs, add, connect }) => {
-    const top = add(NAND, "top");
-    const bottom = add(NAND, "bottom");
-    connect(inputs.setN, top.inputs.a);
-    connect(bottom.outputs.out, top.inputs.b);
-    connect(inputs.resetN, bottom.inputs.a);
-    connect(top.outputs.out, bottom.inputs.b);
-    connect(top.outputs.out, outputs.q);
-    connect(bottom.outputs.out, outputs.qBar);
+  ({ inputs, add, feed, output }) => {
+    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back from bottom, below
+    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
+    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
+    output("q", top.outputs.out);
+    output("qBar", bottom.outputs.out);
   },
 );

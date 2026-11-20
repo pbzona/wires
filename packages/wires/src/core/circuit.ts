@@ -4,7 +4,6 @@ import {
   type CircuitStructure,
   type ComponentDefinition,
   type ComponentInstance,
-  type Connection,
   type ConnectionRecord,
   describeAt,
   type Direction,
@@ -28,22 +27,40 @@ export type CircuitSpec<I extends readonly string[], O extends readonly string[]
   readonly outputs: O;
 };
 
-/** The context passed to a circuit's builder callback. */
+/** What feeds each input of a component being added. Inputs left out must be fed later with `feed()`. */
+export type InputWiring<I extends string> = { readonly [K in I]?: SourcePort };
+
+/**
+ * The context passed to a circuit's builder callback.
+ *
+ * Every wiring call reads "destination ← source", like an assignment:
+ * `add(NOT, "not", { a: nand.outputs.out })`, `feed(top.inputs.b, bottom.outputs.out)`,
+ * `output("out", not.outputs.out)`.
+ */
 export type CircuitBuilder<I extends string, O extends string> = {
-  /** The circuit's external inputs. Inside the circuit they act as signal sources. */
+  /** The circuit's own inputs. Use them as sources for the parts you add. */
   readonly inputs: { readonly [K in I]: Port<K, "input", "source"> };
-  /** The circuit's external outputs. Inside the circuit they act as signal destinations. */
-  readonly outputs: { readonly [K in O]: Port<K, "output", "sink"> };
   /**
-   * Instantiates a component (primitive or composite). Without a name, a
-   * deterministic one of the form `<Definition>#<n>` is generated.
+   * Adds a component (primitive or composite) and wires its inputs. Without a
+   * name, a deterministic one of the form `<Definition>#<n>` is generated.
    */
   add<CI extends string, CO extends string>(
     definition: ComponentDefinition<CI, CO>,
-    name?: string,
+    inputs?: InputWiring<CI>,
   ): ComponentInstance<CI, CO>;
-  /** Connects a source port to a destination port. One source may drive many destinations. */
-  connect(source: SourcePort, destination: SinkPort): Connection;
+  add<CI extends string, CO extends string>(
+    definition: ComponentDefinition<CI, CO>,
+    name: string,
+    inputs?: InputWiring<CI>,
+  ): ComponentInstance<CI, CO>;
+  /**
+   * Feeds a component input that wasn't wired when the component was added.
+   * This is how feedback loops are built: the source can come from a component
+   * added later.
+   */
+  feed(input: SinkPort, source: SourcePort): void;
+  /** Drives one of the circuit's own outputs from a source. */
+  output(name: O, source: SourcePort): void;
 };
 
 const RESERVED_INSTANCE_NAMES = new Set(["inputs", "outputs"]);
@@ -57,11 +74,10 @@ const RESERVED_INSTANCE_NAMES = new Set(["inputs", "outputs"]);
  * exist, which also means a circuit can never contain itself.
  *
  * ```ts
- * const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
- *   const g = add(NAND, "g");
- *   connect(inputs.a, g.inputs.a);
- *   connect(inputs.a, g.inputs.b);
- *   connect(g.outputs.out, outputs.out);
+ * const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+ *   const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+ *   const not = add(NOT, "not", { a: nand.outputs.out });
+ *   output("out", not.outputs.out);
  * });
  * ```
  */
@@ -91,6 +107,8 @@ export function circuit<const I extends readonly string[], const O extends reado
   return definition;
 }
 
+type Connection = { readonly source: Port; readonly destination: Port };
+
 /** Runs a builder callback against a fresh, single-use builder and validates the result. */
 function runBuilder(
   definition: ComponentDefinition,
@@ -102,7 +120,7 @@ function runBuilder(
   const instancesByName = new Map<string, ComponentInstance>();
   const instanceRecords: InstanceRecord[] = [];
   const autoNameCounters = new Map<string, number>();
-  const drivers = new Map<SinkPort, Connection>();
+  const drivers = new Map<Port, Connection>();
   const connections: Connection[] = [];
   let sealed = false;
 
@@ -144,40 +162,72 @@ function runBuilder(
     name: port.name,
   });
 
-  const checkPort = (value: unknown, what: "source" | "destination"): Port => {
+  /** Checks that `value` is a port created by this builder. `where` describes the argument for messages. */
+  const checkPort = (value: unknown, where: string): Port => {
     if (typeof value !== "object" || value === null || (value as { kind?: unknown }).kind !== "port") {
-      return fail(
-        `connect() ${what} is not a port (got ${describeValue(value)}); check that the port name exists`,
-      );
+      return fail(`${where} is not a port (got ${describeValue(value)}); check that the port name exists`);
     }
     const port = value as Port;
     if (!ownedPorts.has(port)) {
       const owner =
         port.owner?.kind === "scope" ? `circuit "${port.owner.name}"` : `instance "${String(port.owner?.name)}"`;
       return fail(
-        `connect() ${what} ${port.id} belongs to ${owner}, which is not part of this circuit ` +
-          `(connections may only reference this circuit's ports and the components it added)`,
+        `${where} (${port.id}) belongs to ${owner}, which is not part of this circuit ` +
+          `(use this circuit's inputs and the outputs of components it added)`,
       );
     }
     return port;
   };
 
-  const add = (child: ComponentDefinition, name?: string): ComponentInstance => {
+  const checkSource = (value: unknown, where: string): Port => {
+    const port = checkPort(value, where);
+    if (port.role !== "source") {
+      fail(
+        `${label(port)} can't be used as a source for ${where}: it's a component input, which receives ` +
+          `a signal rather than producing one (sources are this circuit's inputs and its components' outputs)`,
+      );
+    }
+    return port;
+  };
+
+  /** Records the connection `destination ← source`, enforcing one driver per destination. */
+  const connect = (destination: Port, source: Port): void => {
+    const existing = drivers.get(destination);
+    if (existing !== undefined) {
+      fail(
+        `${label(destination)} has multiple drivers (${label(existing.source)} and ${label(source)}); ` +
+          `each input or output may have only one driver`,
+      );
+    }
+    const connection = Object.freeze({ source, destination });
+    drivers.set(destination, connection);
+    connections.push(connection);
+  };
+
+  const add = (child: ComponentDefinition, nameOrInputs?: unknown, maybeInputs?: unknown): ComponentInstance => {
     if (sealed) fail("add() called after the circuit builder finished");
     if (child === undefined) {
       fail("add() received undefined; a circuit can only contain components defined before it");
     }
     requireInternals(child, "add()");
-    if (name === undefined) {
+
+    let name: string;
+    let inputs: unknown;
+    if (typeof nameOrInputs === "string") {
+      name = nameOrInputs;
+      inputs = maybeInputs;
+      assertName(name, "component instance name", circuitName);
+      if (RESERVED_INSTANCE_NAMES.has(name)) fail(`"${name}" is a reserved name and cannot name a component instance`);
+      if (instancesByName.has(name)) fail(`Duplicate component instance name "${name}"`);
+    } else {
+      if (maybeInputs !== undefined) fail(`add(${child.name}, ...): the instance name must be a string`);
+      inputs = nameOrInputs;
       let n = autoNameCounters.get(child.name) ?? 0;
       while (instancesByName.has(`${child.name}#${n}`)) n++;
       autoNameCounters.set(child.name, n + 1);
       name = `${child.name}#${n}`;
-    } else {
-      assertName(name, "component instance name", circuitName);
-      if (RESERVED_INSTANCE_NAMES.has(name)) fail(`"${name}" is a reserved name and cannot name a component instance`);
-      if (instancesByName.has(name)) fail(`Duplicate component instance name "${name}"`);
     }
+
     const handle = { kind: "instance", name, definition: child } as {
       kind: "instance";
       name: string;
@@ -188,51 +238,57 @@ function runBuilder(
     handle.inputs = portsOf(handle, child.inputs, "input", "sink");
     handle.outputs = portsOf(handle, child.outputs, "output", "source");
     const instance = Object.freeze(handle) as ComponentInstance;
-    instancesByName.set(name, instance);
-    instanceRecords.push(Object.freeze({ name, definition: child }));
+
+    if (inputs !== undefined) {
+      if (typeof inputs !== "object" || inputs === null) {
+        fail(`add(${child.name}, "${name}", ...) expects its inputs as an object like { a: inputs.a }`);
+      }
+      const given = inputs as Record<string, unknown>;
+      for (const key of Object.keys(given)) {
+        if (!child.inputs.includes(key)) {
+          fail(`${child.name} has no input "${key}" (its inputs are ${child.inputs.join(", ") || "none"})`);
+        }
+      }
+      // Check every source before recording anything, so a failed add() leaves no partial wiring.
+      const sources = child.inputs
+        .filter((key) => Object.hasOwn(given, key))
+        .map((key) => [key, checkSource(given[key], `${name}.inputs.${key}`)] as const);
+      instancesByName.set(name, instance);
+      instanceRecords.push(Object.freeze({ name, definition: child }));
+      for (const [key, source] of sources) connect(instance.inputs[key]!, source);
+    } else {
+      instancesByName.set(name, instance);
+      instanceRecords.push(Object.freeze({ name, definition: child }));
+    }
     return instance;
   };
 
-  const connect = (source: SourcePort, destination: SinkPort): Connection => {
-    if (sealed) fail("connect() called after the circuit builder finished");
-    const src = checkPort(source, "source");
-    const dst = checkPort(destination, "destination");
-    if (src.role !== "source") {
+  const feed = (input: SinkPort, source: SourcePort): void => {
+    if (sealed) fail("feed() called after the circuit builder finished");
+    const destination = checkPort(input, "feed() input");
+    if (destination.role !== "sink") {
       fail(
-        `${label(src)} cannot be a connection source: ` +
-          (src.owner.kind === "scope"
-            ? "a circuit's own outputs can only be driven"
-            : "a component's inputs can only be driven"),
+        `feed() can only feed a component input, not ${label(destination)}` +
+          (destination.owner.kind === "scope" ? "" : " (use output() for this circuit's outputs)"),
       );
     }
-    if (dst.role !== "sink") {
-      fail(
-        `${label(dst)} cannot be a connection destination: ` +
-          (dst.owner.kind === "scope"
-            ? "a circuit's own inputs are driven from outside the circuit"
-            : "a component's outputs are driven by the component itself"),
-      );
-    }
-    const existing = drivers.get(dst as SinkPort);
-    if (existing !== undefined) {
-      fail(
-        `${label(dst)} has multiple drivers (${label(existing.source)} and ${label(src)}); ` +
-          `each destination may have only one driver`,
-      );
-    }
-    const connection: Connection = Object.freeze({ source: src as SourcePort, destination: dst as SinkPort });
-    drivers.set(dst as SinkPort, connection);
-    connections.push(connection);
-    return connection;
+    connect(destination, checkSource(source, label(destination)));
   };
 
-  const selfInputs = portsOf(scope, definition.inputs, "input", "source");
-  const selfOutputs = portsOf(scope, definition.outputs, "output", "sink");
+  const ownOutputs = portsOf(scope, definition.outputs, "output", "sink") as Record<string, Port>;
+  const output = (name: string, source: SourcePort): void => {
+    if (sealed) fail("output() called after the circuit builder finished");
+    if (typeof name !== "string" || !Object.hasOwn(ownOutputs, name)) {
+      fail(`"${String(name)}" is not an output of ${circuitName} (its outputs are ${definition.outputs.join(", ") || "none"})`);
+    }
+    connect(ownOutputs[name]!, checkSource(source, `outputs.${name}`));
+  };
+
   const builder: CircuitBuilder<string, string> = Object.freeze({
-    inputs: selfInputs,
-    outputs: selfOutputs,
+    inputs: portsOf(scope, definition.inputs, "input", "source"),
     add: add as CircuitBuilder<string, string>["add"],
-    connect,
+    feed,
+    output,
   });
 
   const result: unknown = build(builder);
@@ -244,11 +300,11 @@ function runBuilder(
   const problems: string[] = [];
   for (const instance of instancesByName.values()) {
     for (const port of Object.values(instance.inputs) as Port[]) {
-      if (!drivers.has(port as SinkPort)) problems.push(`input ${label(port)} is not connected`);
+      if (!drivers.has(port)) problems.push(`input ${label(port)} is not connected`);
     }
   }
-  for (const port of Object.values(selfOutputs) as Port[]) {
-    if (!drivers.has(port as SinkPort)) problems.push(`output ${label(port)} is not driven`);
+  for (const port of Object.values(ownOutputs)) {
+    if (!drivers.has(port)) problems.push(`output ${label(port)} is not driven`);
   }
   if (problems.length > 0) {
     fail(`Invalid circuit:\n  - ${problems.join("\n  - ")}`);

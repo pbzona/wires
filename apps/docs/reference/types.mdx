@@ -73,15 +73,14 @@ interface CircuitScope {
 }
 ```
 
-`SourcePort` is useful for variables that track a signal through a loop, like the carry in a ripple adder.
+`SourcePort` is useful for variables that track a signal through a loop, like the carry in a ripple adder. `SinkPort` is what `feed()` accepts as its destination: a part's input.
 
-## Connection
+## InputWiring
+
+The third argument to `add()`: what feeds each input of the part being added. Inputs left out must be wired later with `feed()`.
 
 ```ts
-interface Connection {
-  readonly source: SourcePort;
-  readonly destination: SinkPort;
-}
+type InputWiring<I extends string> = { readonly [K in I]?: SourcePort };
 ```
 
 ## ComponentDescription

@@ -11,8 +11,8 @@ import {
   simulate,
 } from "wires";
 
-const Wire = circuit({ name: "Wire", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, connect }) => {
-  connect(inputs.a, outputs.out);
+const Wire = circuit({ name: "Wire", inputs: ["a"], outputs: ["out"] }, ({ inputs, output }) => {
+  output("out", inputs.a);
 });
 
 describe("simulator basics", () => {
@@ -62,14 +62,13 @@ describe("simulator basics", () => {
 
   it("propagates across a chain of gates with one tick per gate", () => {
     const depth = 7;
-    const Chain = circuit({ name: "Chain", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
+    const Chain = circuit({ name: "Chain", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
       let previous: SourcePort = inputs.a;
       for (let i = 0; i < depth; i++) {
-        const not = add(NOT, `n${i}`);
-        connect(previous, not.inputs.a);
+        const not = add(NOT, `n${i}`, { a: previous });
         previous = not.outputs.out;
       }
-      connect(previous, outputs.out);
+      output("out", previous);
     });
     const sim = simulate(Chain);
     sim.set({ a: 0 });
@@ -154,13 +153,10 @@ describe("events", () => {
         return { out: a };
       },
     });
-    const C = circuit({ name: "C", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-      const nand = add(NAND, "nand");
-      const probe = add(Probe, "probe");
-      connect(inputs.a, nand.inputs.a);
-      connect(inputs.b, nand.inputs.b);
-      connect(nand.outputs.out, probe.inputs.a);
-      connect(probe.outputs.out, outputs.out);
+    const C = circuit({ name: "C", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+      const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+      const probe = add(Probe, "probe", { a: nand.outputs.out });
+      output("out", probe.outputs.out);
     });
     const sim = simulate(C, { trace: true });
     sim.set({ a: 0, b: 0 });
@@ -195,13 +191,11 @@ describe("events", () => {
       });
     const L = Counted("L");
     const R = Counted("R");
-    const C = circuit({ name: "C", inputs: ["a", "b"], outputs: ["x", "y"] }, ({ inputs, outputs, add, connect }) => {
-      const l = add(L, "l");
-      const r = add(R, "r");
-      connect(inputs.a, l.inputs.a);
-      connect(inputs.b, r.inputs.a);
-      connect(l.outputs.out, outputs.x);
-      connect(r.outputs.out, outputs.y);
+    const C = circuit({ name: "C", inputs: ["a", "b"], outputs: ["x", "y"] }, ({ inputs, add, output }) => {
+      const l = add(L, "l", { a: inputs.a });
+      const r = add(R, "r", { a: inputs.b });
+      output("x", l.outputs.out);
+      output("y", r.outputs.out);
     });
     const sim = simulate(C);
     sim.run(); // initial evaluation of every gate
@@ -214,11 +208,10 @@ describe("events", () => {
 
 describe("structure in simulation", () => {
   it("supports fan-out", () => {
-    const Fan = circuit({ name: "Fan", inputs: ["a"], outputs: ["x", "y", "z"] }, ({ inputs, outputs, add, connect }) => {
+    const Fan = circuit({ name: "Fan", inputs: ["a"], outputs: ["x", "y", "z"] }, ({ inputs, add, output }) => {
       for (const out of ["x", "y", "z"] as const) {
-        const not = add(NOT, `not_${out}`);
-        connect(inputs.a, not.inputs.a);
-        connect(not.outputs.out, outputs[out]);
+        const not = add(NOT, `not_${out}`, { a: inputs.a });
+        output(out, not.outputs.out);
       }
     });
     expect(simulateTo(Fan, { a: 0 })).toEqual({ x: 1, y: 1, z: 1 });
@@ -226,13 +219,11 @@ describe("structure in simulation", () => {
   });
 
   it("keeps instances of the same definition independent", () => {
-    const Two = circuit({ name: "Two", inputs: ["a", "b"], outputs: ["x", "y"] }, ({ inputs, outputs, add, connect }) => {
-      const first = add(NOT);
-      const second = add(NOT);
-      connect(inputs.a, first.inputs.a);
-      connect(inputs.b, second.inputs.a);
-      connect(first.outputs.out, outputs.x);
-      connect(second.outputs.out, outputs.y);
+    const Two = circuit({ name: "Two", inputs: ["a", "b"], outputs: ["x", "y"] }, ({ inputs, add, output }) => {
+      const first = add(NOT, { a: inputs.a });
+      const second = add(NOT, { a: inputs.b });
+      output("x", first.outputs.out);
+      output("y", second.outputs.out);
     });
     expect(simulateTo(Two, { a: 0, b: 1 })).toEqual({ x: 1, y: 0 });
     expect(simulateTo(Two, { a: 1, b: 0 })).toEqual({ x: 0, y: 1 });
@@ -243,10 +234,9 @@ describe("structure in simulation", () => {
     let def: ComponentDefinition<"a", "out"> = NOT;
     for (let level = 0; level < 12; level++) {
       const inner = def;
-      def = circuit({ name: `Level${level}`, inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-        const c = add(inner, "inner");
-        connect(inputs.a, c.inputs.a);
-        connect(c.outputs.out, outputs.out);
+      def = circuit({ name: `Level${level}`, inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+        const c = add(inner, "inner", { a: inputs.a });
+        output("out", c.outputs.out);
       });
     }
     expect(simulateTo(def, { a: 1 })).toEqual({ out: 0 });
@@ -259,21 +249,21 @@ describe("structure in simulation", () => {
 
   it("produces identical results regardless of declaration order", () => {
     const build = (order: "forward" | "reverse") =>
-      circuit({ name: "Xor", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
+      circuit({ name: "Xor", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
         const names = ["n1", "n2", "n3", "n4"];
         const gates = Object.fromEntries(
           (order === "forward" ? names : [...names].reverse()).map((n) => [n, add(NAND, n)]),
         ) as Record<string, ComponentInstance<"a" | "b", "out">>;
         const wiring: Array<() => void> = [
-          () => connect(inputs.a, gates.n1!.inputs.a),
-          () => connect(inputs.b, gates.n1!.inputs.b),
-          () => connect(inputs.a, gates.n2!.inputs.a),
-          () => connect(gates.n1!.outputs.out, gates.n2!.inputs.b),
-          () => connect(inputs.b, gates.n3!.inputs.a),
-          () => connect(gates.n1!.outputs.out, gates.n3!.inputs.b),
-          () => connect(gates.n2!.outputs.out, gates.n4!.inputs.a),
-          () => connect(gates.n3!.outputs.out, gates.n4!.inputs.b),
-          () => connect(gates.n4!.outputs.out, outputs.out),
+          () => feed(gates.n1!.inputs.a, inputs.a),
+          () => feed(gates.n1!.inputs.b, inputs.b),
+          () => feed(gates.n2!.inputs.a, inputs.a),
+          () => feed(gates.n2!.inputs.b, gates.n1!.outputs.out),
+          () => feed(gates.n3!.inputs.a, inputs.b),
+          () => feed(gates.n3!.inputs.b, gates.n1!.outputs.out),
+          () => feed(gates.n4!.inputs.a, gates.n2!.outputs.out),
+          () => feed(gates.n4!.inputs.b, gates.n3!.outputs.out),
+          () => output("out", gates.n4!.outputs.out),
         ];
         for (const w of order === "forward" ? wiring : [...wiring].reverse()) w();
       });
@@ -294,10 +284,10 @@ describe("structure in simulation", () => {
   });
 
   it("reports wire loops with no gate", () => {
-    const Loop = circuit({ name: "Loop", inputs: [], outputs: ["out"] }, ({ outputs, add, connect }) => {
+    const Loop = circuit({ name: "Loop", inputs: [], outputs: ["out"] }, ({ add, feed, output }) => {
       const w = add(Wire, "w");
-      connect(w.outputs.out, w.inputs.a);
-      connect(w.outputs.out, outputs.out);
+      feed(w.inputs.a, w.outputs.out);
+      output("out", w.outputs.out);
     });
     expect(() => simulate(Loop)).toThrow(/^Loop: Wire loop with no driving gate: root\.w\.(inputs\.a|outputs\.out) -> /);
   });

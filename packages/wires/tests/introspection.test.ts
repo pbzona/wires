@@ -17,9 +17,9 @@ describe("topology", () => {
   it("describes feedback connections", () => {
     expect(SRLatch.describe().connections).toEqual([
       { source: "root.inputs.setN", destination: "root.top.inputs.a" },
-      { source: "root.bottom.outputs.out", destination: "root.top.inputs.b" },
       { source: "root.inputs.resetN", destination: "root.bottom.inputs.a" },
       { source: "root.top.outputs.out", destination: "root.bottom.inputs.b" },
+      { source: "root.bottom.outputs.out", destination: "root.top.inputs.b" }, // fed back
       { source: "root.top.outputs.out", destination: "root.outputs.q" },
       { source: "root.bottom.outputs.out", destination: "root.outputs.qBar" },
     ]);

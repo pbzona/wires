@@ -16,18 +16,17 @@ import { NAND } from "wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
-  ({ inputs, outputs, add, connect }) => {
-    const top = add(NAND, "top");
-    const bottom = add(NAND, "bottom");
-    connect(inputs.setN, top.inputs.a);
-    connect(bottom.outputs.out, top.inputs.b); // feedback
-    connect(inputs.resetN, bottom.inputs.a);
-    connect(top.outputs.out, bottom.inputs.b); // feedback
-    connect(top.outputs.out, outputs.q);
-    connect(bottom.outputs.out, outputs.qBar);
+  ({ inputs, add, feed, output }) => {
+    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
+    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
+    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
+    output("q", top.outputs.out);
+    output("qBar", bottom.outputs.out);
   },
 );
 ```
+
+`top` needs `bottom`'s output, but `bottom` doesn't exist yet when `top` is added. So `top`'s input `b` is left out of the `add` call and wired afterwards with [`feed`](/guides/composing-circuits#feedback). Each part feeds the other, and that loop is what lets the latch remember.
 
 ## Storing a bit
 
@@ -94,15 +93,12 @@ An odd number of inverters in a loop has no stable state. This ring oscillator g
 import { circuit, simulate, StabilizationError } from "wires";
 import { NAND, NOT } from "wires/components";
 
-const Ring = circuit({ name: "Ring", inputs: ["enable"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const gate = add(NAND, "gate");
-  const inv1 = add(NOT, "inv1");
-  const inv2 = add(NOT, "inv2");
-  connect(inputs.enable, gate.inputs.a);
-  connect(inv2.outputs.out, gate.inputs.b);
-  connect(gate.outputs.out, inv1.inputs.a);
-  connect(inv1.outputs.out, inv2.inputs.a);
-  connect(inv2.outputs.out, outputs.out);
+const Ring = circuit({ name: "Ring", inputs: ["enable"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
+  const gate = add(NAND, "gate", { a: inputs.enable }); // b is fed back from inv2
+  const inv1 = add(NOT, "inv1", { a: gate.outputs.out });
+  const inv2 = add(NOT, "inv2", { a: inv1.outputs.out });
+  feed(gate.inputs.b, inv2.outputs.out);
+  output("out", inv2.outputs.out);
 });
 
 const sim = simulate(Ring, { maxTicks: 100, trace: true });

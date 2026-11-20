@@ -25,17 +25,14 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
         inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
         outputs: ["s0", "s1", "s2", "s3", "carryOut"],
       },
-      ({ inputs, outputs, add, connect }) => {
+      ({ inputs, add, output }) => {
         let carry: SourcePort = inputs.carryIn;
         for (const i of [0, 1, 2, 3] as const) {
-          const fa = add(FullAdder, `fa${i}`);
-          connect(inputs[`a${i}`], fa.inputs.a);
-          connect(inputs[`b${i}`], fa.inputs.b);
-          connect(carry, fa.inputs.carryIn);
-          connect(fa.outputs.sum, outputs[`s${i}`]);
+          const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
+          output(`s${i}`, fa.outputs.sum);
           carry = fa.outputs.carryOut;
         }
-        connect(carry, outputs.carryOut);
+        output("carryOut", carry);
       },
     );
     ```
@@ -54,17 +51,14 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
         inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
         outputs: ["s0", "s1", "s2", "s3", "carryOut"],
       },
-      ({ inputs, outputs, add, connect }) => {
+      ({ inputs, add, output }) => {
         let carry: SourcePort = inputs.carryIn;
         for (const i of [0, 1, 2, 3] as const) {
-          const fa = add(FullAdder, `fa${i}`);
-          connect(inputs[`a${i}`], fa.inputs.a);
-          connect(inputs[`b${i}`], fa.inputs.b);
-          connect(carry, fa.inputs.carryIn);
-          connect(fa.outputs.sum, outputs[`s${i}`]);
+          const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
+          output(`s${i}`, fa.outputs.sum);
           carry = fa.outputs.carryOut;
         }
-        connect(carry, outputs.carryOut);
+        output("carryOut", carry);
       },
     );
 

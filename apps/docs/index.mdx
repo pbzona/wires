@@ -10,11 +10,9 @@ icon: "zap"
 import { circuit, simulate } from "wires";
 import { NAND } from "wires/components";
 
-const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const g = add(NAND, "g");
-  connect(inputs.a, g.inputs.a);
-  connect(inputs.a, g.inputs.b);
-  connect(g.outputs.out, outputs.out);
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
+  output("out", g.outputs.out);
 });
 
 const sim = simulate(NOT);

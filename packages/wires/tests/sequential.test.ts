@@ -5,15 +5,12 @@ import { StabilizationError, circuit, simulate } from "wires";
 /** NAND(enable, feedback) followed by two inverters, fed back: a three-stage ring oscillator. */
 const RingOscillator = circuit(
   { name: "RingOscillator", inputs: ["enable"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const gate = add(NAND, "gate");
-    const inv1 = add(NOT, "inv1");
-    const inv2 = add(NOT, "inv2");
-    connect(inputs.enable, gate.inputs.a);
-    connect(inv2.outputs.out, gate.inputs.b);
-    connect(gate.outputs.out, inv1.inputs.a);
-    connect(inv1.outputs.out, inv2.inputs.a);
-    connect(inv2.outputs.out, outputs.out);
+  ({ inputs, add, feed, output }) => {
+    const gate = add(NAND, "gate", { a: inputs.enable }); // b is fed back from inv2, below
+    const inv1 = add(NOT, "inv1", { a: gate.outputs.out });
+    const inv2 = add(NOT, "inv2", { a: inv1.outputs.out });
+    feed(gate.inputs.b, inv2.outputs.out);
+    output("out", inv2.outputs.out);
   },
 );
 

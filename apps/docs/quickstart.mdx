@@ -52,7 +52,7 @@ The package has two entry points:
   </Step>
 
   <Step title="Compose it into a circuit">
-    A composite circuit adds component instances and connects their ports.
+    A composite circuit adds parts one at a time, saying what feeds each part's inputs, then says what drives its outputs.
 
     ```ts
     import { circuit } from "wires";
@@ -60,17 +60,15 @@ The package has two entry points:
 
     export const AND = circuit(
       { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
-      ({ inputs, outputs, add, connect }) => {
-        const nand = add(NAND, "nand");
-        const not = add(NAND, "not");
-        connect(inputs.a, nand.inputs.a);
-        connect(inputs.b, nand.inputs.b);
-        connect(nand.outputs.out, not.inputs.a);
-        connect(nand.outputs.out, not.inputs.b);
-        connect(not.outputs.out, outputs.out);
+      ({ inputs, add, output }) => {
+        const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+        const not = add(NAND, "not", { a: nand.outputs.out, b: nand.outputs.out });
+        output("out", not.outputs.out);
       },
     );
     ```
+
+    Read it top to bottom: the inputs feed `nand`, `nand` feeds `not` (a NAND with both inputs tied together is a NOT), and `not` drives the output.
   </Step>
 
   <Step title="Simulate it">
@@ -110,7 +108,7 @@ The package has two entry points:
 </Steps>
 
 <Tip>
-  Port names are inferred from your definitions. `sim.read("nope")` or `connect(inputs.a, nand.inputs.c)` fails at compile time, not at runtime.
+  Port names are inferred from your definitions. `sim.read("nope")` or `add(NAND, "nand", { c: inputs.a })` fails at compile time, not at runtime.
 </Tip>
 
 ## Next steps

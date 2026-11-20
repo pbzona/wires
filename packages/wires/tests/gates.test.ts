@@ -56,11 +56,10 @@ describe("custom primitives", () => {
 
   it("can be mixed with standard components", () => {
     const LOW = gate({ name: "LOW", inputs: [], outputs: ["out"], evaluate: () => ({ out: 0 }) });
-    const C = circuit({ name: "C", inputs: [], outputs: ["out"] }, ({ outputs, add, connect }) => {
-      const low = add(LOW);
-      const not = add(NOT);
-      connect(low.outputs.out, not.inputs.a);
-      connect(not.outputs.out, outputs.out);
+    const C = circuit({ name: "C", inputs: [], outputs: ["out"] }, ({ add, output }) => {
+      const low = add(LOW, "low");
+      const not = add(NOT, "not", { a: low.outputs.out });
+      output("out", not.outputs.out);
     });
     expect(evaluate(C, {}).out).toBe(1);
   });
@@ -68,10 +67,9 @@ describe("custom primitives", () => {
   const badGate = (name: string, evaluate: () => unknown) =>
     gate({ name, inputs: ["a"], outputs: ["out"], evaluate: evaluate as never });
   const wrapped = (inner: ReturnType<typeof badGate>) =>
-    circuit({ name: "Wrap", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-      const g = add(inner, "bad");
-      connect(inputs.a, g.inputs.a);
-      connect(g.outputs.out, outputs.out);
+    circuit({ name: "Wrap", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+      const g = add(inner, "bad", { a: inputs.a });
+      output("out", g.outputs.out);
     });
   const runError = (inner: ReturnType<typeof badGate>) => {
     const sim = simulate(wrapped(inner));

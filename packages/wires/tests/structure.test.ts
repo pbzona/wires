@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AND, NAND, NOT } from "wires/components";
+import { AND, NAND, NOT, SRLatch } from "wires/components";
 import {
   CircuitError,
   circuit,
@@ -10,6 +10,17 @@ import {
 } from "wires";
 
 const BUF = gate({ name: "BUF", inputs: ["a"], outputs: ["out"], evaluate: ({ a }) => ({ out: a }) });
+
+const expectCircuitError = (fn: () => unknown, message: RegExp) => {
+  let error: unknown;
+  try {
+    fn();
+  } catch (e) {
+    error = e;
+  }
+  expect(error).toBeInstanceOf(CircuitError);
+  expect((error as Error).message).toMatch(message);
+};
 
 describe("definitions", () => {
   it("exposes the same interface for primitive and composite definitions", () => {
@@ -76,17 +87,13 @@ describe("definitions", () => {
 
   it("generates deterministic names for unnamed instances", () => {
     const make = () =>
-      circuit({ name: "Pair", inputs: ["a"], outputs: ["x", "y"] }, ({ inputs, outputs, add, connect }) => {
-        const first = add(NOT);
-        const second = add(NOT);
-        const named = add(NAND, "n");
+      circuit({ name: "Pair", inputs: ["a"], outputs: ["x", "y"] }, ({ inputs, add, output }) => {
+        const first = add(NOT, { a: inputs.a });
+        const second = add(NOT, { a: inputs.a });
+        const named = add(NAND, "n", { a: inputs.a, b: inputs.a });
         expect([first.name, second.name, named.name]).toEqual(["NOT#0", "NOT#1", "n"]);
-        connect(inputs.a, first.inputs.a);
-        connect(inputs.a, second.inputs.a);
-        connect(inputs.a, named.inputs.a);
-        connect(inputs.a, named.inputs.b);
-        connect(first.outputs.out, outputs.x);
-        connect(second.outputs.out, outputs.y);
+        output("x", first.outputs.out);
+        output("y", second.outputs.out);
       });
     expect(make().describe()).toEqual(make().describe());
     expect(make().describe().components.map((c) => c.id)).toEqual(["root.NOT#0", "root.NOT#1", "root.n"]);
@@ -94,9 +101,9 @@ describe("definitions", () => {
 
   it("builds immediately and only once", () => {
     let runs = 0;
-    const C = circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, connect }) => {
+    const C = circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, output }) => {
       runs++;
-      connect(inputs.a, outputs.out);
+      output("out", inputs.a);
     });
     expect(runs).toBe(1);
     C.describe();
@@ -105,18 +112,45 @@ describe("definitions", () => {
   });
 });
 
-describe("validation", () => {
-  const expectCircuitError = (fn: () => unknown, message: RegExp) => {
-    let error: unknown;
-    try {
-      fn();
-    } catch (e) {
-      error = e;
-    }
-    expect(error).toBeInstanceOf(CircuitError);
-    expect((error as Error).message).toMatch(message);
-  };
+describe("wiring", () => {
+  it("wires inputs when a component is added", () => {
+    const C = circuit({ name: "C", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+      const n = add(NAND, "n", { a: inputs.a, b: inputs.b });
+      output("out", n.outputs.out);
+    });
+    expect(C.describe().connections).toEqual([
+      { source: "root.inputs.a", destination: "root.n.inputs.a" },
+      { source: "root.inputs.b", destination: "root.n.inputs.b" },
+      { source: "root.n.outputs.out", destination: "root.outputs.out" },
+    ]);
+  });
 
+  it("feeds inputs later, for feedback", () => {
+    expect(SRLatch.describe().connections).toContainEqual({
+      source: "root.bottom.outputs.out",
+      destination: "root.top.inputs.b",
+    });
+  });
+
+  it("allows fan-out and direct input-to-output wires", () => {
+    const Fan = circuit({ name: "Fan", inputs: ["a"], outputs: ["x", "y"] }, ({ inputs, output }) => {
+      output("x", inputs.a);
+      output("y", inputs.a);
+    });
+    expect(Fan.describe().connections).toHaveLength(2);
+  });
+
+  it("accepts feedback loops", () => {
+    const Loop = circuit({ name: "Loop", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
+      const n = add(NAND, "n", { a: inputs.a });
+      feed(n.inputs.b, n.outputs.out);
+      output("out", n.outputs.out);
+    });
+    expect(() => Loop.describe()).not.toThrow();
+  });
+});
+
+describe("validation", () => {
   it("rejects duplicate port names", () => {
     expectCircuitError(
       () => gate({ name: "G", inputs: ["a", "a"], outputs: ["out"], evaluate: () => ({ out: 0 }) }),
@@ -143,139 +177,108 @@ describe("validation", () => {
   it("rejects duplicate and reserved instance names", () => {
     expectCircuitError(
       () =>
-        circuit({ name: "C", inputs: [], outputs: [] }, ({ add }) => {
-          add(BUF, "x");
-          add(BUF, "x");
-        }).describe(),
+        circuit({ name: "C", inputs: ["a"], outputs: [] }, ({ inputs, add }) => {
+          add(BUF, "x", { a: inputs.a });
+          add(BUF, "x", { a: inputs.a });
+        }),
       /^C: Duplicate component instance name "x"/,
     );
     expectCircuitError(
-      () => circuit({ name: "C", inputs: [], outputs: [] }, ({ add }) => void add(BUF, "inputs")).describe(),
+      () => circuit({ name: "C", inputs: ["a"], outputs: [] }, ({ inputs, add }) => void add(BUF, "inputs", { a: inputs.a })),
       /reserved name/,
     );
   });
 
-  it("rejects connections in the wrong direction", () => {
+  it("rejects inputs that the component doesn't have", () => {
     expectCircuitError(
       () =>
-        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-          const b = add(BUF, "b");
-          // @ts-expect-error a child input is not a source
-          connect(b.inputs.a, outputs.out);
-          connect(inputs.a, b.inputs.a);
-        }).describe(),
-      /^C: inputs\.a cannot be a connection source|b\.inputs\.a cannot be a connection source/,
-    );
-    expectCircuitError(
-      () =>
-        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, connect }) => {
-          // @ts-expect-error a circuit's own input is not a destination
-          connect(inputs.a, inputs.a);
-        }).describe(),
-      /inputs\.a cannot be a connection destination/,
-    );
-    expectCircuitError(
-      () =>
-        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ outputs, add, connect }) => {
-          const b = add(BUF, "b");
-          // @ts-expect-error a child output is not a destination
-          connect(outputs.out, b.outputs.out);
-        }).describe(),
-      /cannot be a connection/,
+        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+          // @ts-expect-error NAND has no input "c"
+          const n = add(NAND, "n", { a: inputs.a, b: inputs.a, c: inputs.a });
+          output("out", n.outputs.out);
+        }),
+      /^C: NAND has no input "c" \(its inputs are a, b\)/,
     );
   });
 
-  it("rejects multiple drivers for one destination", () => {
+  it("rejects sources that don't exist", () => {
     expectCircuitError(
       () =>
-        circuit({ name: "C", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, outputs, connect }) => {
-          connect(inputs.a, outputs.out);
-          connect(inputs.b, outputs.out);
-        }).describe(),
+        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+          const first = add(BUF, "first", { a: inputs.a });
+          // @ts-expect-error BUF has no output "result"
+          const n = add(NAND, "n", { a: inputs.a, b: first.outputs.result });
+          output("out", n.outputs.out);
+        }),
+      /^C: n\.inputs\.b is not a port \(got undefined\); check that the port name exists/,
+    );
+  });
+
+  it("rejects component inputs used as sources", () => {
+    expectCircuitError(
+      () =>
+        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+          const b = add(BUF, "b", { a: inputs.a });
+          // @ts-expect-error a component input is not a source
+          output("out", b.inputs.a);
+        }),
+      /^C: b\.inputs\.a can't be used as a source for outputs\.out: it's a component input/,
+    );
+  });
+
+  it("only feeds component inputs", () => {
+    expectCircuitError(
+      () =>
+        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
+          const b = add(BUF, "b", { a: inputs.a });
+          // @ts-expect-error a component output can't be fed
+          feed(b.outputs.out, inputs.a);
+          output("out", b.outputs.out);
+        }),
+      /^C: feed\(\) can only feed a component input, not b\.outputs\.out/,
+    );
+  });
+
+  it("rejects outputs that the circuit doesn't have", () => {
+    expectCircuitError(
+      () =>
+        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, output }) => {
+          // @ts-expect-error C has no output "other"
+          output("other", inputs.a);
+        }),
+      /^C: "other" is not an output of C \(its outputs are out\)/,
+    );
+  });
+
+  it("rejects multiple drivers", () => {
+    expectCircuitError(
+      () =>
+        circuit({ name: "C", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, output }) => {
+          output("out", inputs.a);
+          output("out", inputs.b);
+        }),
       /outputs\.out has multiple drivers \(inputs\.a and inputs\.b\)/,
     );
-  });
-
-  it("allows fan-out from one source", () => {
-    const Fan = circuit({ name: "Fan", inputs: ["a"], outputs: ["x", "y"] }, ({ inputs, outputs, connect }) => {
-      connect(inputs.a, outputs.x);
-      connect(inputs.a, outputs.y);
-    });
-    expect(Fan.describe().connections).toHaveLength(2);
-  });
-
-  it("reports unconnected internal inputs and undriven outputs", () => {
     expectCircuitError(
       () =>
-        circuit({ name: "C", inputs: ["a"], outputs: ["out", "other"] }, ({ inputs, outputs, add, connect }) => {
-          const n = add(NAND, "n");
-          connect(inputs.a, n.inputs.a);
-          connect(n.outputs.out, outputs.out);
-        }).describe(),
+        circuit({ name: "C", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
+          const n = add(NAND, "n", { a: inputs.a, b: inputs.a });
+          feed(n.inputs.b, inputs.b);
+          output("out", n.outputs.out);
+        }),
+      /n\.inputs\.b has multiple drivers \(inputs\.a and inputs\.b\)/,
+    );
+  });
+
+  it("reports unconnected internal inputs and undriven outputs together", () => {
+    expectCircuitError(
+      () =>
+        circuit({ name: "C", inputs: ["a"], outputs: ["out", "other"] }, ({ inputs, add, output }) => {
+          const n = add(NAND, "n", { a: inputs.a });
+          output("out", n.outputs.out);
+        }),
       /input n\.inputs\.b is not connected[\s\S]*output outputs\.other is not driven/,
     );
-  });
-
-  it("rejects ports of foreign component instances", () => {
-    let stolen: SourcePort | undefined;
-    circuit({ name: "Other", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, connect }) => {
-      stolen = inputs.a;
-      connect(inputs.a, outputs.out);
-    }).describe();
-    expectCircuitError(
-      () =>
-        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ outputs, connect }) => {
-          connect(stolen!, outputs.out);
-        }).describe(),
-      /belongs to circuit "Other", which is not part of this circuit/,
-    );
-
-    let otherInstance: ComponentInstance<"a", "out"> | undefined;
-    circuit({ name: "Other2", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-      const b = add(BUF, "b");
-      otherInstance = b;
-      connect(inputs.a, b.inputs.a);
-      connect(b.outputs.out, outputs.out);
-    }).describe();
-    expectCircuitError(
-      () =>
-        circuit({ name: "C", inputs: [], outputs: ["out"] }, ({ outputs, connect }) => {
-          connect(otherInstance!.outputs.out, outputs.out);
-        }).describe(),
-      /belongs to instance "b"/,
-    );
-  });
-
-  it("rejects references to ports that do not exist", () => {
-    expectCircuitError(
-      () =>
-        circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-          const n = add(NAND, "n");
-          // @ts-expect-error NAND has no input "c"
-          connect(inputs.a, n.inputs.c);
-          connect(n.outputs.out, outputs.out);
-        }).describe(),
-      /connect\(\) destination is not a port \(got undefined\)/,
-    );
-  });
-
-  it("rejects things that are not definitions", () => {
-    expectCircuitError(
-      () =>
-        circuit({ name: "C", inputs: [], outputs: [] }, ({ add }) => {
-          add({ kind: "primitive", name: "Fake", inputs: [], outputs: [], describe: () => ({}) } as never);
-        }).describe(),
-      /add\(\) expects a component definition/,
-    );
-  });
-
-  it("rejects use of the builder after it finished", () => {
-    let saved: { add: (d: typeof BUF) => unknown } | undefined;
-    const C = circuit({ name: "C", inputs: [], outputs: [] }, (b) => {
-      saved = b;
-    });
-    C.describe();
-    expectCircuitError(() => saved!.add(BUF), /after the circuit builder finished/);
   });
 
   it("reports errors where the circuit is defined", () => {
@@ -285,16 +288,47 @@ describe("validation", () => {
     );
   });
 
+  it("rejects ports of other circuits", () => {
+    let stolen: SourcePort | undefined;
+    circuit({ name: "Other", inputs: ["a"], outputs: ["out"] }, ({ inputs, output }) => {
+      stolen = inputs.a;
+      output("out", inputs.a);
+    });
+    expectCircuitError(
+      () => circuit({ name: "C", inputs: [], outputs: ["out"] }, ({ output }) => output("out", stolen!)),
+      /belongs to circuit "Other", which is not part of this circuit/,
+    );
+
+    let otherInstance: ComponentInstance<"a", "out"> | undefined;
+    circuit({ name: "Other2", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+      otherInstance = add(BUF, "b", { a: inputs.a });
+      output("out", otherInstance.outputs.out);
+    });
+    expectCircuitError(
+      () => circuit({ name: "C", inputs: [], outputs: ["out"] }, ({ output }) => output("out", otherInstance!.outputs.out)),
+      /belongs to instance "b"/,
+    );
+  });
+
+  it("rejects things that are not definitions", () => {
+    expectCircuitError(
+      () =>
+        circuit({ name: "C", inputs: [], outputs: [] }, ({ add }) => {
+          add({ kind: "primitive", name: "Fake", inputs: [], outputs: [], describe: () => ({}) } as never);
+        }),
+      /add\(\) expects a component definition/,
+    );
+  });
+
   it("cannot contain components that are defined later (so no recursion)", () => {
     // `var` makes the later definition visible as `undefined` instead of throwing a ReferenceError.
     // eslint-disable-next-line no-var
     var Later: ComponentDefinition<"a", "out"> | undefined;
     expectCircuitError(
       () =>
-        circuit({ name: "Before", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-          const later = add(Later!, "later");
-          connect(inputs.a, later.inputs.a);
-          connect(later.outputs.out, outputs.out);
+        circuit({ name: "Before", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+          const later = add(Later!, "later", { a: inputs.a });
+          output("out", later.outputs.out);
         }),
       /^Before: add\(\) received undefined; a circuit can only contain components defined before it/,
     );
@@ -302,20 +336,18 @@ describe("validation", () => {
     expect(Later).toBe(BUF);
   });
 
-  it("rejects asynchronous builders", () => {
-    expectCircuitError(
-      () => circuit({ name: "C", inputs: [], outputs: [] }, (async () => {}) as never).describe(),
-      /must be synchronous/,
-    );
+  it("rejects use of the builder after it finished", () => {
+    let saved: { add: (d: typeof BUF) => unknown } | undefined;
+    circuit({ name: "C", inputs: [], outputs: [] }, (b) => {
+      saved = b;
+    });
+    expectCircuitError(() => saved!.add(BUF), /after the circuit builder finished/);
   });
 
-  it("accepts feedback connections", () => {
-    const Loop = circuit({ name: "Loop", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-      const n = add(NAND, "n");
-      connect(inputs.a, n.inputs.a);
-      connect(n.outputs.out, n.inputs.b);
-      connect(n.outputs.out, outputs.out);
-    });
-    expect(() => Loop.describe()).not.toThrow();
+  it("rejects asynchronous builders", () => {
+    expectCircuitError(
+      () => circuit({ name: "C", inputs: [], outputs: [] }, (async () => {}) as never),
+      /must be synchronous/,
+    );
   });
 });

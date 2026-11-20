@@ -5,7 +5,6 @@ export type {
   ComponentDefinition,
   ComponentDescription,
   ComponentInstance,
-  Connection,
   ConnectionDescription,
   Direction,
   Port,
@@ -15,7 +14,7 @@ export type {
   SourcePort,
 } from "./core/component.js";
 export { gate, type GateSpec } from "./core/gate.js";
-export { circuit, type CircuitBuilder, type CircuitSpec } from "./core/circuit.js";
+export { circuit, type CircuitBuilder, type CircuitSpec, type InputWiring } from "./core/circuit.js";
 export { elaborate, type Ancestor, type GateInfo, type NetInfo, type Netlist } from "./core/elaborate.js";
 
 // Simulation

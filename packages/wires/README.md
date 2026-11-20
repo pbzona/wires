@@ -99,20 +99,15 @@ zero inputs (a constant source).
 import { circuit, simulate } from "wires";
 import { NAND } from "wires/components";
 
-const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const g = add(NAND, "g");
-  connect(inputs.a, g.inputs.a);
-  connect(inputs.a, g.inputs.b);
-  connect(g.outputs.out, outputs.out);
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
+  output("out", g.outputs.out);
 });
 
-const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const nand = add(NAND, "nand");
-  const not = add(NOT, "not"); // composites are added exactly like primitives
-  connect(inputs.a, nand.inputs.a);
-  connect(inputs.b, nand.inputs.b);
-  connect(nand.outputs.out, not.inputs.a);
-  connect(not.outputs.out, outputs.out);
+const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+  const not = add(NOT, "not", { a: nand.outputs.out }); // composites are added exactly like primitives
+  output("out", not.outputs.out);
 });
 
 const sim = simulate(AND);
@@ -124,19 +119,39 @@ sim.run();
 sim.read("out"); // 0
 ```
 
-The builder context provides:
+Each line adds one part and says what feeds it, so signals flow from top to
+bottom. Every wiring call reads **destination ← source**, like an assignment.
 
 | Member | Purpose |
 |---|---|
-| `inputs` | the circuit's external inputs; inside the circuit they are sources |
-| `outputs` | the circuit's external outputs; inside the circuit they are destinations |
-| `add(definition, name?)` | instantiate any component; unnamed instances get `"<Definition>#<n>"` |
-| `connect(source, destination)` | wire a source to a destination; one source can fan out to many destinations |
+| `inputs` | the circuit's own inputs, used as sources for the parts you add |
+| `add(definition, name?, { input: source })` | add a part and wire its inputs; unnamed parts get `"<Definition>#<n>"` |
+| `feed(part.inputs.x, source)` | wire an input later, which is how feedback loops are made |
+| `output(name, source)` | drive one of the circuit's own outputs |
 
-Sources are the circuit's own inputs and its children's outputs. Destinations
-are its children's inputs and its own outputs. Wiring in the wrong direction is
-a compile-time error, and is rejected again at runtime. Feedback loops are
-allowed.
+Sources are the circuit's inputs and the outputs of parts it added. One source
+can feed any number of inputs, but each input has exactly one source. Using a
+part's input as a source, or naming a port that doesn't exist, is a
+compile-time error, and is rejected again at runtime.
+
+Feedback needs `feed`, because a part's input can't be wired to something that
+hasn't been added yet:
+
+```ts
+import { circuit } from "wires";
+import { NAND } from "wires/components";
+
+const SRLatch = circuit(
+  { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
+  ({ inputs, add, feed, output }) => {
+    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
+    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
+    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
+    output("q", top.outputs.out);
+    output("qBar", bottom.outputs.out);
+  },
+);
+```
 
 The builder runs immediately, inside `circuit()`, and the result is validated
 before `circuit()` returns, so mistakes are reported where you made them. A
@@ -155,17 +170,14 @@ const Adder4 = circuit(
     inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
     outputs: ["s0", "s1", "s2", "s3", "carryOut"],
   },
-  ({ inputs, outputs, add, connect }) => {
+  ({ inputs, add, output }) => {
     let carry: SourcePort = inputs.carryIn;
     for (const i of [0, 1, 2, 3] as const) {
-      const fa = add(FullAdder, `fa${i}`);
-      connect(inputs[`a${i}`], fa.inputs.a);
-      connect(inputs[`b${i}`], fa.inputs.b);
-      connect(carry, fa.inputs.carryIn);
-      connect(fa.outputs.sum, outputs[`s${i}`]);
+      const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
+      output(`s${i}`, fa.outputs.sum);
       carry = fa.outputs.carryOut;
     }
-    connect(carry, outputs.carryOut);
+    output("carryOut", carry);
   },
 );
 
@@ -301,7 +313,7 @@ All errors extend `WiresError`.
 
 | Error | When |
 |---|---|
-| `CircuitError` | Invalid names; duplicate ports or instance names; wrong-direction, foreign or nonexistent ports; multiple drivers; unconnected child inputs; undriven outputs; components that aren't defined yet; wire loops with no gate. Messages are prefixed with the circuit name and use component paths. |
+| `CircuitError` | Invalid names; duplicate ports or instance names; inputs or outputs that don't exist; a part's input used as a source; ports from another circuit; multiple drivers; unconnected child inputs; undriven outputs; components that aren't defined yet; wire loops with no gate. Messages are prefixed with the circuit name and use component paths. |
 | `SimulationError` | Unknown inputs or outputs, invalid signal values, or an evaluator that throws or returns missing, unexpected or invalid outputs. The message names the primitive and its path. |
 | `StabilizationError` | `run()` exceeded `maxTicks`. Exposes `tick`, `ticksExecuted`, `maxTicks`, `recentChanges` and `components` (paths of the gates involved). |
 

@@ -22,83 +22,45 @@ export const NAND = gate({
 });
 
 /** out = NOT a, as NAND(a, a). */
-export const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
-  const g = add(NAND, "g");
-  connect(inputs.a, g.inputs.a);
-  connect(inputs.a, g.inputs.b);
-  connect(g.outputs.out, outputs.out);
+export const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
+  output("out", g.outputs.out);
 });
 
 /** out = a AND b, as NOT(NAND(a, b)). */
-export const AND = circuit(
-  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const nand = add(NAND, "nand");
-    const not = add(NOT, "not");
-    connect(inputs.a, nand.inputs.a);
-    connect(inputs.b, nand.inputs.b);
-    connect(nand.outputs.out, not.inputs.a);
-    connect(not.outputs.out, outputs.out);
-  },
-);
+export const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+  const not = add(NOT, "not", { a: nand.outputs.out });
+  output("out", not.outputs.out);
+});
 
 /** out = a OR b, as NAND(NOT a, NOT b). */
-export const OR = circuit(
-  { name: "OR", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const notA = add(NOT, "notA");
-    const notB = add(NOT, "notB");
-    const nand = add(NAND, "nand");
-    connect(inputs.a, notA.inputs.a);
-    connect(inputs.b, notB.inputs.a);
-    connect(notA.outputs.out, nand.inputs.a);
-    connect(notB.outputs.out, nand.inputs.b);
-    connect(nand.outputs.out, outputs.out);
-  },
-);
+export const OR = circuit({ name: "OR", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const notA = add(NOT, "notA", { a: inputs.a });
+  const notB = add(NOT, "notB", { a: inputs.b });
+  const nand = add(NAND, "nand", { a: notA.outputs.out, b: notB.outputs.out });
+  output("out", nand.outputs.out);
+});
 
 /** out = NOT (a OR b). */
-export const NOR = circuit(
-  { name: "NOR", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const or = add(OR, "or");
-    const not = add(NOT, "not");
-    connect(inputs.a, or.inputs.a);
-    connect(inputs.b, or.inputs.b);
-    connect(or.outputs.out, not.inputs.a);
-    connect(not.outputs.out, outputs.out);
-  },
-);
+export const NOR = circuit({ name: "NOR", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const or = add(OR, "or", { a: inputs.a, b: inputs.b });
+  const not = add(NOT, "not", { a: or.outputs.out });
+  output("out", not.outputs.out);
+});
 
 /** out = a XOR b, using the classic four-NAND network. */
-export const XOR = circuit(
-  { name: "XOR", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const n1 = add(NAND, "n1");
-    const n2 = add(NAND, "n2");
-    const n3 = add(NAND, "n3");
-    const n4 = add(NAND, "n4");
-    connect(inputs.a, n1.inputs.a);
-    connect(inputs.b, n1.inputs.b);
-    connect(inputs.a, n2.inputs.a);
-    connect(n1.outputs.out, n2.inputs.b);
-    connect(inputs.b, n3.inputs.a);
-    connect(n1.outputs.out, n3.inputs.b);
-    connect(n2.outputs.out, n4.inputs.a);
-    connect(n3.outputs.out, n4.inputs.b);
-    connect(n4.outputs.out, outputs.out);
-  },
-);
+export const XOR = circuit({ name: "XOR", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const n1 = add(NAND, "n1", { a: inputs.a, b: inputs.b });
+  const n2 = add(NAND, "n2", { a: inputs.a, b: n1.outputs.out });
+  const n3 = add(NAND, "n3", { a: inputs.b, b: n1.outputs.out });
+  const n4 = add(NAND, "n4", { a: n2.outputs.out, b: n3.outputs.out });
+  output("out", n4.outputs.out);
+});
 
 /** out = NOT (a XOR b). */
-export const XNOR = circuit(
-  { name: "XNOR", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, outputs, add, connect }) => {
-    const xor = add(XOR, "xor");
-    const not = add(NOT, "not");
-    connect(inputs.a, xor.inputs.a);
-    connect(inputs.b, xor.inputs.b);
-    connect(xor.outputs.out, not.inputs.a);
-    connect(not.outputs.out, outputs.out);
-  },
-);
+export const XNOR = circuit({ name: "XNOR", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
+  const xor = add(XOR, "xor", { a: inputs.a, b: inputs.b });
+  const not = add(NOT, "not", { a: xor.outputs.out });
+  output("out", not.outputs.out);
+});

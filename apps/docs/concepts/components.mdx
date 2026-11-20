@@ -31,7 +31,7 @@ Definitions are frozen and hold no simulation state, so you can share one defini
 
 ## Instances
 
-When a circuit calls `add(definition, name?)`, it creates a `ComponentInstance`: one occurrence of that definition inside the circuit. Two instances of the same definition are fully independent. They have different names, different hierarchical paths and separate signal values.
+When a circuit calls `add(definition, name?, inputs?)`, it creates a `ComponentInstance`, which is one part made from that definition. Two parts made from the same definition are fully independent. They have different names, different hierarchical paths and separate signal values.
 
 ```ts
 import { circuit } from "wires";
@@ -39,13 +39,11 @@ import { NOT } from "wires/components";
 
 const TwoInverters = circuit(
   { name: "TwoInverters", inputs: ["a", "b"], outputs: ["x", "y"] },
-  ({ inputs, outputs, add, connect }) => {
-    const first = add(NOT); // named "NOT#0"
-    const second = add(NOT); // named "NOT#1"
-    connect(inputs.a, first.inputs.a);
-    connect(inputs.b, second.inputs.a);
-    connect(first.outputs.out, outputs.x);
-    connect(second.outputs.out, outputs.y);
+  ({ inputs, add, output }) => {
+    const first = add(NOT, { a: inputs.a }); // named "NOT#0"
+    const second = add(NOT, { a: inputs.b }); // named "NOT#1"
+    output("x", first.outputs.out);
+    output("y", second.outputs.out);
   },
 );
 ```
@@ -57,29 +55,31 @@ A port is a named terminal on a component. Each port has:
 - an `id` unique within its component, such as `"inputs.a"` or `"outputs.out"`
 - a `name` and a `direction` (`"input"` or `"output"`)
 - an `owner`, which is either an instance or the circuit being defined
-- a `role` (`"source"` or `"sink"`) that says how the port can be used in the current circuit
+- a `role` that says how the port can be used in the current circuit: `"source"` if it can drive a wire, `"sink"` if it can only be fed
 
 Ports are structural references only. They never hold values.
 
-### Sources and sinks
+### Sources
 
-Inside a circuit, signals flow from **sources** to **sinks**:
+Inside a circuit, signals flow from **sources** to the inputs of parts and to the circuit's own outputs. A source is either:
 
-| Port | Role inside the circuit |
-| --- | --- |
-| The circuit's own inputs (`inputs.a`) | Source |
-| A child's outputs (`g.outputs.out`) | Source |
-| A child's inputs (`g.inputs.a`) | Sink |
-| The circuit's own outputs (`outputs.out`) | Sink |
+- one of the circuit's own inputs (`inputs.a`), or
+- an output of a part the circuit added (`g.outputs.out`).
 
-`connect(source, destination)` only accepts a source followed by a sink. Getting it backwards is a compile-time error, and the same check runs again at runtime.
+A part's inputs (`g.inputs.a`) are never sources. You only ever say what *feeds* them. Using one as a source is a compile-time error, and the same check runs again at runtime.
 
 ## Connections
 
-A connection is a directed link from one source to one sink.
+A connection links one source to one input or output. Each wiring call in a builder reads **destination ← source**:
 
-- **Fan-out is allowed.** One source can drive any number of sinks.
-- **One driver per sink.** Connecting a second source to the same sink throws a `CircuitError`.
+| Call | Connects |
+| --- | --- |
+| `add(NOT, "not", { a: nand.outputs.out })` | `not`'s input `a` ← `nand`'s output |
+| `feed(top.inputs.b, bottom.outputs.out)` | `top`'s input `b` ← `bottom`'s output |
+| `output("out", not.outputs.out)` | the circuit's output `out` ← `not`'s output |
+
+- **Fan-out is allowed.** One source can feed any number of inputs.
+- **One driver per input.** Giving an input or output a second source throws a `CircuitError`.
 - **Cycles are allowed.** Feedback is how memory works. See [Sequential logic](/guides/sequential-logic).
 
 ## Circuits and hierarchy

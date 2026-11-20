@@ -25,13 +25,27 @@ with a runtime check. Passing a not-yet-defined (`undefined`) component to
 | Port | direction | role |
 |---|---|---|
 | circuit's own input (`inputs.a`) | input | source |
-| circuit's own output (`outputs.out`) | output | sink |
+| circuit's own output (driven by `output("out", …)`) | output | sink |
 | child input (`g.inputs.a`) | input | sink |
 | child output (`g.outputs.out`) | output | source |
 
-`connect(source, destination)` is typed as `(SourcePort, SinkPort)`, so wiring
-in the wrong direction or naming a port that doesn't exist fails at compile
-time. The same checks run again at runtime for untyped callers.
+**Wiring API.** The builder exposes `inputs`, `add`, `feed` and `output`. Every
+call reads *destination ← source*, like an assignment:
+
+- `add(def, name?, { a: source })` adds a part and wires the inputs it lists.
+  Signal flow reads top to bottom, and you never name a child input as a
+  destination.
+- `feed(part.inputs.b, source)` wires an input later. It exists for feedback,
+  where the source is added after the part it feeds.
+- `output("out", source)` drives the circuit's own output, so the circuit's
+  outputs never appear as handles you could mistake for sources.
+
+This replaces an earlier `connect(source, destination)` design. There, the
+word "inputs" meant a source for the circuit's own ports but a destination for
+a child's ports, and the signal direction was carried only by argument order.
+Sources are typed as `SourcePort`, so passing a child input as a source, using
+an unknown input name in the `add` record, or naming an unknown output fails at
+compile time. The same checks run again at runtime for untyped callers.
 
 **Elaboration.** The hierarchy is flattened into a netlist. Each connection
 makes its destination an alias of its source, with no delay. Every port path
