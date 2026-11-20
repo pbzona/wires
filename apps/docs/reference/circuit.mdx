@@ -1,0 +1,83 @@
+---
+title: "circuit()"
+description: "Define a composite circuit from other components."
+icon: "layers"
+---
+
+```ts
+function circuit<const I extends readonly string[], const O extends readonly string[]>(
+  spec: CircuitSpec<I, O>,
+  build: (builder: CircuitBuilder<I[number], O[number]>) => void,
+): ComponentDefinition<I[number], O[number]>;
+```
+
+## Parameters
+
+<ResponseField name="spec.name" type="string" required>
+  The definition name. Must be an identifier.
+</ResponseField>
+
+<ResponseField name="spec.inputs" type="readonly string[]" required>
+  External input names, inferred as literal types.
+</ResponseField>
+
+<ResponseField name="spec.outputs" type="readonly string[]" required>
+  External output names, inferred as literal types. Must not repeat any input name.
+</ResponseField>
+
+<ResponseField name="build" type="(builder: CircuitBuilder) => void" required>
+  A synchronous callback that adds components and connects ports. It runs **once, lazily**, the first time the definition is used: when it is added to another circuit, described, elaborated or simulated.
+</ResponseField>
+
+## Returns
+
+A frozen [`ComponentDefinition`](/reference/types#componentdefinition) with `kind: "composite"`.
+
+## CircuitBuilder
+
+<ResponseField name="inputs" type="{ [name]: Port<name, 'input', 'source'> }">
+  The circuit's own input ports. Inside the circuit they act as signal sources.
+</ResponseField>
+
+<ResponseField name="outputs" type="{ [name]: Port<name, 'output', 'sink'> }">
+  The circuit's own output ports. Inside the circuit they act as signal sinks.
+</ResponseField>
+
+<ResponseField name="add" type="(definition, name?) => ComponentInstance">
+  Instantiates any definition. Without `name`, a deterministic name `<Definition>#<n>` is generated. The returned instance exposes `inputs` (sinks) and `outputs` (sources). Adding a composite builds it immediately, which surfaces its errors and detects recursion.
+</ResponseField>
+
+<ResponseField name="connect" type="(source: SourcePort, destination: SinkPort) => Connection">
+  Connects one source to one sink. A source may drive many sinks, but each sink accepts exactly one driver.
+</ResponseField>
+
+## Example
+
+```ts
+import { circuit } from "wires";
+import { NAND, NOT } from "wires/components";
+
+const AND = circuit(
+  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
+  ({ inputs, outputs, add, connect }) => {
+    const nand = add(NAND, "nand");
+    const not = add(NOT, "not");
+    connect(inputs.a, nand.inputs.a);
+    connect(inputs.b, nand.inputs.b);
+    connect(nand.outputs.out, not.inputs.a);
+    connect(not.outputs.out, outputs.out);
+  },
+);
+```
+
+## Errors
+
+Every error is a `CircuitError` whose message is prefixed with the circuit name.
+
+| When | Problem |
+| --- | --- |
+| `circuit()` call | Invalid or duplicate port names, invalid circuit name, missing builder |
+| `add()` | Not a definition, invalid, duplicate or reserved (`inputs`, `outputs`) instance name, recursive definition |
+| `connect()` | Not a port, a port from another circuit, wrong direction, or a sink that already has a driver |
+| After the builder returns | Child inputs left unconnected, outputs left undriven, or the builder returned a promise |
+| Any builder method after the builder returns | The builder has finished and can't be used again |

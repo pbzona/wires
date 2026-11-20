@@ -1,0 +1,34 @@
+---
+title: "Memory"
+description: "The cross-coupled NAND SR latch."
+icon: "memory-stick"
+---
+
+## SRLatch
+
+A set-reset latch made of two cross-coupled NAND gates, with **active-low** controls. Children: `top` (drives `q`) and `bottom` (drives `qBar`).
+
+| setN | resetN | q | qBar | Meaning |
+| --- | --- | --- | --- | --- |
+| 0 | 1 | 1 | 0 | Set |
+| 1 | 0 | 0 | 1 | Reset |
+| 1 | 1 | q | qBar | Hold (`X` until first set or reset) |
+| 0 | 0 | 1 | 1 | Forbidden: not a valid stored state |
+
+```ts
+import { simulate } from "wires";
+import { SRLatch } from "wires/components";
+
+const latch = simulate(SRLatch);
+latch.set({ setN: 0, resetN: 1 });
+latch.run();
+latch.set({ setN: 1 });
+latch.run();
+console.log(latch.readAll()); // { q: 1, qBar: 0 }: the bit is retained
+```
+
+<Warning>
+  Releasing both controls from `0, 0` to `1, 1` in the same tick makes both gates toggle together forever. `run()` reports this with a `StabilizationError` instead of picking a winner. Release one control before the other.
+</Warning>
+
+See [Sequential logic](/guides/sequential-logic) for a full walkthrough.

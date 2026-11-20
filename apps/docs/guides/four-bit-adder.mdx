@@ -1,0 +1,124 @@
+---
+title: "Tutorial: a four-bit adder"
+sidebarTitle: "Four-bit adder"
+description: "Chain full adders into a ripple-carry adder, test it and look inside."
+icon: "calculator"
+---
+
+This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder`](/library/arithmetic), using only the public API. The result is 60 NAND gates, organized as a hierarchy you can inspect.
+
+<Steps>
+  <Step title="Define the ports">
+    Two four-bit operands (`a0`–`a3` and `b0`–`b3`, least significant bit first), a carry in, four sum bits and a carry out.
+  </Step>
+
+  <Step title="Chain the full adders">
+    Each stage's carry out feeds the next stage's carry in. A `SourcePort` variable tracks the carry as the loop runs.
+
+    ```ts
+    import { circuit, type SourcePort } from "wires";
+    import { FullAdder } from "wires/components";
+
+    export const Adder4 = circuit(
+      {
+        name: "Adder4",
+        inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
+        outputs: ["s0", "s1", "s2", "s3", "carryOut"],
+      },
+      ({ inputs, outputs, add, connect }) => {
+        let carry: SourcePort = inputs.carryIn;
+        for (const i of [0, 1, 2, 3] as const) {
+          const fa = add(FullAdder, `fa${i}`);
+          connect(inputs[`a${i}`], fa.inputs.a);
+          connect(inputs[`b${i}`], fa.inputs.b);
+          connect(carry, fa.inputs.carryIn);
+          connect(fa.outputs.sum, outputs[`s${i}`]);
+          carry = fa.outputs.carryOut;
+        }
+        connect(carry, outputs.carryOut);
+      },
+    );
+    ```
+
+    The template literal keys like `` inputs[`a${i}`] `` are still type-checked, because `i` is the literal union `0 | 1 | 2 | 3`.
+  </Step>
+
+  <Step title="Add some numbers">
+    ```ts
+    import { circuit, simulate, type Signal, type SourcePort } from "wires";
+    import { FullAdder } from "wires/components";
+
+    const Adder4 = circuit(
+      {
+        name: "Adder4",
+        inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
+        outputs: ["s0", "s1", "s2", "s3", "carryOut"],
+      },
+      ({ inputs, outputs, add, connect }) => {
+        let carry: SourcePort = inputs.carryIn;
+        for (const i of [0, 1, 2, 3] as const) {
+          const fa = add(FullAdder, `fa${i}`);
+          connect(inputs[`a${i}`], fa.inputs.a);
+          connect(inputs[`b${i}`], fa.inputs.b);
+          connect(carry, fa.inputs.carryIn);
+          connect(fa.outputs.sum, outputs[`s${i}`]);
+          carry = fa.outputs.carryOut;
+        }
+        connect(carry, outputs.carryOut);
+      },
+    );
+
+    const bits = (prefix: "a" | "b", n: number) =>
+      Object.fromEntries([0, 1, 2, 3].map((i) => [`${prefix}${i}`, ((n >> i) & 1) as Signal]));
+
+    const sim = simulate(Adder4);
+    for (const [a, b] of [[3, 4], [7, 9], [15, 15]] as const) {
+      sim.set({ ...bits("a", a), ...bits("b", b), carryIn: 0 });
+      const { ticks } = sim.run();
+      const o = sim.readAll();
+      const sum = [o.s0, o.s1, o.s2, o.s3, o.carryOut].reduce<number>((acc, bit, i) => acc + Number(bit) * 2 ** i, 0);
+      console.log(`${a} + ${b} = ${sum} (settled in ${ticks} ticks)`);
+    }
+    ```
+
+    ```text
+    3 + 4 = 7 (settled in 15 ticks)
+    7 + 9 = 16 (settled in 17 ticks)
+    15 + 15 = 30 (settled in 7 ticks)
+    ```
+
+    The settle time depends on how far the carry has to ripple from the previous input.
+  </Step>
+
+  <Step title="Test every combination">
+    With 4 + 4 + 1 input bits there are only 512 cases, so you can check them all:
+
+    ```ts
+    for (let a = 0; a < 16; a++) {
+      for (let b = 0; b < 16; b++) {
+        for (const carryIn of [0, 1] as const) {
+          sim.set({ ...bits("a", a), ...bits("b", b), carryIn });
+          sim.run();
+          const o = sim.readAll();
+          const sum = [o.s0, o.s1, o.s2, o.s3, o.carryOut].reduce<number>((acc, bit, i) => acc + Number(bit) * 2 ** i, 0);
+          if (sum !== a + b + carryIn) throw new Error(`${a} + ${b} + ${carryIn} gave ${sum}`);
+        }
+      }
+    }
+    ```
+
+    The library's own test suite runs exactly this check.
+  </Step>
+
+  <Step title="Look inside">
+    [`elaborate()`](/reference/elaborate) flattens the hierarchy into primitive gates:
+
+    ```ts
+    const netlist = elaborate(Adder4); // import { elaborate } from "wires"
+    console.log(netlist.gates.length); // 60
+    console.log(netlist.outputs.carryOut); // "root.fa3.or.nand.outputs.out"
+    ```
+
+    Each full adder is two half adders (an XOR of 4 NANDs plus an AND of 2) and an OR of 3 NANDs, which comes to 15 NANDs per bit.
+  </Step>
+</Steps>

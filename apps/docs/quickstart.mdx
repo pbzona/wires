@@ -1,0 +1,125 @@
+---
+title: "Quickstart"
+description: "Install wires, define a gate, compose a circuit and run a simulation."
+icon: "rocket"
+---
+
+## Install
+
+<CodeGroup>
+
+```bash pnpm
+pnpm add wires
+```
+
+```bash npm
+npm install wires
+```
+
+```bash bun
+bun add wires
+```
+
+</CodeGroup>
+
+The package has two entry points:
+
+| Import | Contents |
+| --- | --- |
+| `wires` | The engine: `gate`, `circuit`, `simulate`, `elaborate`, errors and types |
+| `wires/components` | The standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
+
+## Build and simulate a circuit
+
+<Steps>
+  <Step title="Define a primitive gate">
+    A primitive has an explicit evaluation function. Here is NAND, the only gate you need to build everything else.
+
+    ```ts
+    import { gate } from "wires";
+
+    export const NAND = gate({
+      name: "NAND",
+      inputs: ["a", "b"],
+      outputs: ["out"],
+      evaluate: ({ a, b }) => ({
+        out: a === 0 || b === 0 ? 1 : a === 1 && b === 1 ? 0 : "X",
+      }),
+    });
+    ```
+
+    `wires/components` exports this exact gate, so the next steps import it from there.
+  </Step>
+
+  <Step title="Compose it into a circuit">
+    A composite circuit adds component instances and connects their ports.
+
+    ```ts
+    import { circuit } from "wires";
+    import { NAND } from "wires/components";
+
+    export const AND = circuit(
+      { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
+      ({ inputs, outputs, add, connect }) => {
+        const nand = add(NAND, "nand");
+        const not = add(NAND, "not");
+        connect(inputs.a, nand.inputs.a);
+        connect(inputs.b, nand.inputs.b);
+        connect(nand.outputs.out, not.inputs.a);
+        connect(nand.outputs.out, not.inputs.b);
+        connect(not.outputs.out, outputs.out);
+      },
+    );
+    ```
+  </Step>
+
+  <Step title="Simulate it">
+    Simulation only advances when you ask it to.
+
+    ```ts
+    import { simulate } from "wires";
+    import { AND } from "wires/components";
+
+    const sim = simulate(AND);
+
+    sim.set({ a: 1, b: 1 });
+    sim.run();
+    console.log(sim.read("out")); // 1
+
+    sim.set({ a: 0 });
+    sim.run();
+    console.log(sim.read("out")); // 0
+    ```
+  </Step>
+
+  <Step title="Look inside">
+    Every simulator can report the value of every port in the hierarchy.
+
+    ```ts
+    import { simulate } from "wires";
+    import { AND } from "wires/components";
+
+    const sim = simulate(AND, { trace: true });
+    sim.set({ a: 1, b: 1 });
+    sim.run();
+
+    console.log(sim.inspect().signals["root.nand.outputs.out"]); // 0
+    console.log(sim.trace().length); // 4 transitions
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  Port names are inferred from your definitions. `sim.read("nope")` or `connect(inputs.a, nand.inputs.c)` fails at compile time, not at runtime.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Composing circuits" icon="layers" href="/guides/composing-circuits">
+    Builder rules, naming, fan-out and feedback.
+  </Card>
+  <Card title="Simulation model" icon="timer" href="/concepts/simulation-model">
+    How ticks, delays and unknown values work.
+  </Card>
+</CardGroup>

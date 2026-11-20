@@ -1,0 +1,55 @@
+---
+title: "gate()"
+description: "Define a primitive gate with an explicit evaluation function."
+icon: "square-function"
+---
+
+```ts
+function gate<const I extends readonly string[], const O extends readonly string[]>(
+  spec: GateSpec<I, O>,
+): ComponentDefinition<I[number], O[number]>;
+```
+
+## Parameters
+
+<ResponseField name="spec.name" type="string" required>
+  The definition name. Must be an identifier. It appears in `describe()`, netlists, generated instance names and error messages.
+</ResponseField>
+
+<ResponseField name="spec.inputs" type="readonly string[]" required>
+  Input port names. Inferred as literal types. May be empty.
+</ResponseField>
+
+<ResponseField name="spec.outputs" type="readonly string[]" required>
+  Output port names. Inferred as literal types. Must not repeat any input name.
+</ResponseField>
+
+<ResponseField name="spec.evaluate" type="(inputs) => outputs" required>
+  A pure, synchronous function. It receives a frozen object with the current value of every input, and must return an object with a [`Signal`](/reference/types#signal) for every output and no other keys.
+</ResponseField>
+
+## Returns
+
+A frozen [`ComponentDefinition`](/reference/types#componentdefinition) with `kind: "primitive"`.
+
+## Example
+
+```ts
+import { gate } from "wires";
+
+const NAND = gate({
+  name: "NAND",
+  inputs: ["a", "b"],
+  outputs: ["out"],
+  evaluate: ({ a, b }) => ({
+    out: a === 0 || b === 0 ? 1 : a === 1 && b === 1 ? 0 : "X",
+  }),
+});
+```
+
+## Errors
+
+| Thrown | When |
+| --- | --- |
+| `CircuitError` (immediately) | The name or a port name isn't an identifier, a port name is repeated, or `evaluate` isn't a function |
+| `SimulationError` (during simulation) | `evaluate` throws, returns something other than an object, omits an output, adds an unknown output, or returns a non-signal value |

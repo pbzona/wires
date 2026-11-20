@@ -1,0 +1,53 @@
+---
+title: "Introduction"
+description: "Build digital logic from a single NAND gate up, then simulate and inspect it, in TypeScript."
+icon: "zap"
+---
+
+`wires` is a small, composable TypeScript library for defining, building, simulating and inspecting digital logic circuits. You start with one primitive gate and compose it into inverters, adders, multiplexers and memory, using one consistent API all the way up.
+
+```ts
+import { circuit, simulate } from "wires";
+import { NAND } from "wires/components";
+
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
+  const g = add(NAND, "g");
+  connect(inputs.a, g.inputs.a);
+  connect(inputs.a, g.inputs.b);
+  connect(g.outputs.out, outputs.out);
+});
+
+const sim = simulate(NOT);
+sim.set({ a: 1 });
+sim.run();
+console.log(sim.read("out")); // 0
+```
+
+## Design principles
+
+- **One interface for everything.** A primitive gate and a 60-gate adder are both component definitions. Anything you build can be reused inside something bigger.
+- **Deterministic simulation.** Discrete time, one tick of delay per gate, and results that never depend on declaration order.
+- **Honest about the unknown.** Signals start as `X`, and the simulator never quietly turns an unknown into a 0 or 1.
+- **Inspectable by design.** Topology, the flattened netlist, live signal values and transition traces are all plain, serializable data.
+- **Small and dependency-free.** Strict TypeScript, ESM, zero runtime dependencies. Runs on Node.js, Bun and modern browsers.
+
+<Note>
+  `wires` is an educational and experimental toolkit. It is not a production hardware description language or an electrical simulator.
+</Note>
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install the library and simulate your first circuit in a few minutes.
+  </Card>
+  <Card title="Core concepts" icon="book-open" href="/concepts/components">
+    Definitions, instances, ports and connections.
+  </Card>
+  <Card title="Standard library" icon="boxes" href="/library/overview">
+    Gates, adders, multiplexers and an SR latch, all built from NAND.
+  </Card>
+  <Card title="API reference" icon="code" href="/reference/gate">
+    Every exported function, type and error.
+  </Card>
+</CardGroup>

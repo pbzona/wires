@@ -1,0 +1,21 @@
+{
+  "name": "wires-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.12.0",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "check": "turbo run typecheck test build lint",
+    "dev": "turbo run dev",
+    "docs": "turbo run dev --filter=docs"
+  },
+  "engines": {
+    "node": ">=22.18 <25"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.13"
+  }
+}

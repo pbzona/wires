@@ -1,0 +1,16 @@
+packages:
+  - packages/*
+  - apps/*
+
+# Install scripts of transitive dependencies (all pulled in by the Mintlify CLI).
+# Left disabled: `mint dev`, `mint validate` and `mint broken-links` work without them.
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: false
+  keytar: false
+  sharp: false
+
+minimumReleaseAgeExclude:
+  - '@mintlify/cli@4.1.76'
+  - '@mintlify/package-builder@0.0.188'
+  - mint@4.3.76

@@ -1,0 +1,98 @@
+---
+title: "Primitive gates"
+description: "Define your own primitives with explicit evaluation functions."
+icon: "square-function"
+---
+
+A primitive is the smallest unit the simulator runs. You define one with [`gate()`](/reference/gate) by giving it a name, its ports and a pure evaluation function.
+
+```ts
+import { gate, simulate } from "wires";
+
+const NAND = gate({
+  name: "NAND",
+  inputs: ["a", "b"],
+  outputs: ["out"],
+  evaluate: ({ a, b }) => ({
+    out: a === 0 || b === 0 ? 1 : a === 1 && b === 1 ? 0 : "X",
+  }),
+});
+
+const sim = simulate(NAND);
+sim.set({ a: 1, b: 1 });
+sim.run();
+console.log(sim.read("out")); // 0
+```
+
+## The evaluation function
+
+`evaluate` receives the current value of every input and must return an object with a value for **every declared output and nothing else**.
+
+- It must be **pure and synchronous**. The simulator may call it any number of times and assumes the same inputs always give the same outputs.
+- It must handle `"X"`. Decide which inputs dominate (like `0` for NAND), and return `"X"` when the answer is truly unknown.
+- The `inputs` object it receives is frozen.
+
+The simulator checks every result. Missing outputs, extra outputs, non-signal values like `true` or `2`, and thrown exceptions all become a [`SimulationError`](/reference/errors) that names the primitive and its path:
+
+```text
+Primitive Bool at root.bad returned an invalid signal for output "out": true (expected 0, 1 or "X")
+```
+
+## Multiple outputs
+
+Primitives can have any number of inputs and outputs:
+
+```ts
+import { gate, simulate } from "wires";
+
+const Compare = gate({
+  name: "Compare",
+  inputs: ["a", "b"],
+  outputs: ["equal", "greater"],
+  evaluate: ({ a, b }) =>
+    a === "X" || b === "X"
+      ? { equal: "X", greater: "X" }
+      : { equal: a === b ? 1 : 0, greater: a === 1 && b === 0 ? 1 : 0 },
+});
+
+const sim = simulate(Compare);
+sim.set({ a: 1, b: 0 });
+sim.run();
+console.log(sim.readAll()); // { equal: 0, greater: 1 }
+```
+
+## Constant sources
+
+A primitive with no inputs is evaluated once on the first tick, which makes it a constant:
+
+```ts
+import { gate, simulate } from "wires";
+
+const HIGH = gate({ name: "HIGH", inputs: [], outputs: ["out"], evaluate: () => ({ out: 1 }) });
+
+const sim = simulate(HIGH);
+sim.run();
+console.log(sim.read("out")); // 1
+```
+
+## Typing
+
+Port names are captured as literal types, so the evaluation function's parameter and return type are checked:
+
+```ts
+gate({
+  name: "Broken",
+  inputs: ["a"],
+  outputs: ["out"],
+  // @ts-expect-error: "b" is not an input
+  evaluate: ({ b }) => ({ out: b }),
+});
+```
+
+## Naming rules
+
+Gate names and port names must be identifiers: letters, digits and underscores, not starting with a digit. Port names must be unique across a gate's inputs and outputs combined. Breaking either rule throws a `CircuitError` immediately.
+
+<Tip>
+  The standard library uses NAND as its **only** primitive, but you are free to define others. For example, an `AND3` primitive keeps a large design fast when you don't need to see its gate-level detail.
+</Tip>

@@ -1,0 +1,111 @@
+---
+title: "Introspection"
+description: "Topology, netlists, live state and signal traces as plain data."
+icon: "search"
+---
+
+Introspection is a first-class feature. There are four views, each serializable with `JSON.stringify`, and together they hold everything a frontend needs to draw a circuit and animate its signals.
+
+| View | Call | Contains |
+| --- | --- | --- |
+| Topology | `definition.describe()` | The hierarchical structure: components, ports and connections |
+| Netlist | `elaborate(definition)` | The flattened graph of primitives and nets |
+| State | `sim.inspect()` | The current value of every port, plus timing |
+| Trace | `sim.trace()` | Every signal transition with its tick |
+
+## Topology
+
+`describe()` returns a `ComponentDescription` tree rooted at `"root"`:
+
+```ts
+import { AND } from "wires/components";
+
+const d = AND.describe();
+console.log(d.components.map((c) => `${c.id} (${c.definition}, ${c.kind})`));
+// ["root.nand (NAND, primitive)", "root.not (NOT, composite)"]
+console.log(d.connections[0]);
+// { source: "root.inputs.a", destination: "root.nand.inputs.a" }
+```
+
+Each node has an `id` (its hierarchical path), its `name`, the `parent` id, the `definition` name, its `kind`, its `ports`, child `components` and internal `connections`. Primitives have empty `components` and `connections`. See [`ComponentDescription`](/reference/types#componentdescription).
+
+## Netlist
+
+[`elaborate()`](/reference/elaborate) returns the flattened graph that the simulator actually runs:
+
+```ts
+import { elaborate } from "wires";
+import { AND } from "wires/components";
+
+const netlist = elaborate(AND);
+console.log(netlist.gates.map((g) => g.path)); // ["root.nand", "root.not.g"]
+console.log(netlist.gates[1]?.ancestors);
+// [{ id: "root", definition: "AND" }, { id: "root.not", definition: "NOT" }]
+console.log(netlist.portNets["root.outputs.out"]); // "root.not.g.outputs.out"
+```
+
+Each net lists its driver, every port aliased to it, and the gates that read it. That's useful for highlighting a whole wire when one port is hovered.
+
+## State
+
+`inspect()` returns a snapshot of the simulator:
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+const sim = simulate(AND);
+sim.set({ a: 1, b: 1 });
+sim.run();
+console.log(sim.inspect());
+```
+
+```ts
+{
+  tick: 3,
+  signals: {
+    "root.inputs.a": 1,
+    "root.inputs.b": 1,
+    "root.outputs.out": 1,
+    "root.nand.inputs.a": 1,
+    "root.nand.inputs.b": 1,
+    "root.nand.outputs.out": 0,
+    "root.not.inputs.a": 0,
+    "root.not.outputs.out": 1,
+    "root.not.g.inputs.a": 0,
+    "root.not.g.inputs.b": 0,
+    "root.not.g.outputs.out": 1
+  },
+  pendingEvents: 0,
+  stable: true
+}
+```
+
+`signals` has an entry for **every port in the hierarchy**, in hierarchical order, so any wire in a diagram can be colored directly. Each snapshot is a fresh object. Mutating it doesn't affect the simulator.
+
+## Trace
+
+Enable tracing with `simulate(definition, { trace: true })`. It is off by default to save memory.
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+const sim = simulate(AND, { trace: true });
+sim.set({ a: 1, b: 1 });
+sim.run();
+console.log(sim.trace());
+// [
+//   { tick: 0, signalId: "root.inputs.a", previous: "X", value: 1 },
+//   { tick: 0, signalId: "root.inputs.b", previous: "X", value: 1 },
+//   { tick: 1, signalId: "root.nand.outputs.out", previous: "X", value: 0 },
+//   { tick: 2, signalId: "root.not.g.outputs.out", previous: "X", value: 1 },
+// ]
+```
+
+- Entries are ordered by tick, and by signal id within a tick, so traces are deterministic.
+- `signalId` is the net id, meaning the path of the driving port. Use `netlist.nets` to map it to every port on that wire.
+- `trace()` returns a frozen copy. Later simulation doesn't change an array you already hold.
+- `reset()` clears the trace.
+
+Traces are the raw material for timing diagrams and waveform views.

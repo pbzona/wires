@@ -1,0 +1,73 @@
+---
+title: "elaborate()"
+description: "Flatten a hierarchical definition into primitive gates and nets."
+icon: "network"
+---
+
+```ts
+function elaborate(definition: ComponentDefinition): Netlist;
+```
+
+Returns the flattened, deeply frozen and serializable graph that the simulator runs. Results are cached per definition. Throws `CircuitError` if the definition can't be elaborated, for example because of a wire loop with no gate in it.
+
+## Netlist
+
+<ResponseField name="root" type="string">
+  Always `"root"`.
+</ResponseField>
+
+<ResponseField name="definition" type="string">
+  The name of the elaborated definition.
+</ResponseField>
+
+<ResponseField name="inputs" type="Record<string, string>">
+  External input name to net id.
+</ResponseField>
+
+<ResponseField name="outputs" type="Record<string, string>">
+  External output name to net id.
+</ResponseField>
+
+<ResponseField name="nets" type="NetInfo[]">
+  Every net, sorted by id.
+
+  <Expandable title="NetInfo">
+    <ResponseField name="id" type="string">The net id: the path of its driving port.</ResponseField>
+    <ResponseField name="driver" type="'input' | 'gate'">Whether a root input or a primitive output drives the net.</ResponseField>
+    <ResponseField name="gate" type="string | null">The path of the driving gate, or `null` for inputs.</ResponseField>
+    <ResponseField name="ports" type="string[]">Every port path carrying this net's value, in hierarchical order.</ResponseField>
+    <ResponseField name="readers" type="string[]">The paths of the gates that read this net.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="gates" type="GateInfo[]">
+  Every primitive gate, sorted by path.
+
+  <Expandable title="GateInfo">
+    <ResponseField name="path" type="string">Hierarchical path, for example `root.not.g`.</ResponseField>
+    <ResponseField name="definition" type="string">The primitive's definition name.</ResponseField>
+    <ResponseField name="ancestors" type="{ id: string; definition: string }[]">The composites that contain the gate, outermost first.</ResponseField>
+    <ResponseField name="inputs" type="Record<string, string>">Input port name to net id.</ResponseField>
+    <ResponseField name="outputs" type="Record<string, string>">Output port name to net id.</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="ports" type="string[]">
+  Every port path in the hierarchy, in hierarchical (declaration) order. This is the same key order as `inspect().signals`.
+</ResponseField>
+
+<ResponseField name="portNets" type="Record<string, string>">
+  Port path to net id.
+</ResponseField>
+
+## Example
+
+```ts
+import { elaborate } from "wires";
+import { AND } from "wires/components";
+
+const netlist = elaborate(AND);
+const net = netlist.nets.find((n) => n.id === "root.nand.outputs.out");
+console.log(net?.ports);
+// ["root.nand.outputs.out", "root.not.inputs.a", "root.not.g.inputs.a", "root.not.g.inputs.b"]
+```

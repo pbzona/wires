@@ -1,0 +1,85 @@
+---
+title: "simulate()"
+description: "Create an independent simulator for a definition."
+icon: "play"
+---
+
+```ts
+function simulate<I extends string, O extends string>(
+  definition: ComponentDefinition<I, O>,
+  options?: SimulationOptions,
+): Simulator<I, O>;
+```
+
+Elaborates the definition (cached per definition) and returns a new simulator. All signals start as `"X"` at tick 0.
+
+## Options
+
+<ResponseField name="maxTicks" type="number" default="10000">
+  The maximum number of ticks a single `run()` call may execute. Must be a positive integer.
+</ResponseField>
+
+<ResponseField name="trace" type="boolean" default="false">
+  Record every signal transition, to be returned by `trace()`.
+</ResponseField>
+
+## Simulator
+
+<ResponseField name="set(inputs)" type="(inputs: { [K in I]?: Signal }) => void">
+  Schedules external input values for the current tick. Values equal to the current value are ignored. Throws `SimulationError` for unknown names or invalid values, and rejects the whole call if any entry is invalid.
+</ResponseField>
+
+<ResponseField name="read(output)" type="(output: O) => Signal">
+  The current value of one external output. Never advances time.
+</ResponseField>
+
+<ResponseField name="readAll()" type="() => { [K in O]: Signal }">
+  The current values of all external outputs. Never advances time.
+</ResponseField>
+
+<ResponseField name="tick()" type="() => void">
+  Processes the current tick (apply changes, evaluate affected gates, schedule changed outputs) and advances time by one.
+</ResponseField>
+
+<ResponseField name="run()" type="() => RunResult">
+  Ticks until stable and returns `{ ticks, tick }`: the ticks executed by this call, and the time afterwards. Throws `StabilizationError` after `maxTicks` ticks.
+</ResponseField>
+
+<ResponseField name="reset()" type="() => void">
+  Restores the initial state: tick 0, all signals `"X"`, no pending events, empty trace, and every gate due for its initial evaluation.
+</ResponseField>
+
+<ResponseField name="inspect()" type="() => SimulationSnapshot">
+  Returns `{ tick, signals, pendingEvents, stable }`. `signals` maps every hierarchical port id to its current value.
+</ResponseField>
+
+<ResponseField name="trace()" type="() => readonly SignalTransition[]">
+  A frozen copy of all recorded transitions, ordered by tick and then by signal id. Empty unless `trace: true`.
+</ResponseField>
+
+The simulator object is frozen, and its methods don't depend on `this`, so destructuring them is safe.
+
+## Example
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+const { set, run, read } = simulate(AND);
+set({ a: 1, b: 1 });
+run();
+console.log(read("out")); // 1
+```
+
+## Related types
+
+```ts
+type RunResult = { readonly ticks: number; readonly tick: number };
+
+type SimulationSnapshot = {
+  readonly tick: number;
+  readonly signals: Readonly<Record<string, Signal>>;
+  readonly pendingEvents: number;
+  readonly stable: boolean;
+};
+```

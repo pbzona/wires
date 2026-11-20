@@ -1,0 +1,124 @@
+---
+title: "Running simulations"
+description: "Set inputs, advance time, read outputs and reset."
+icon: "play"
+---
+
+[`simulate(definition, options?)`](/reference/simulate) creates an independent simulator for any definition, primitive or composite.
+
+```ts
+import { simulate } from "wires";
+import { XOR } from "wires/components";
+
+const sim = simulate(XOR, { maxTicks: 1000, trace: false });
+
+for (const [a, b] of [[0, 0], [0, 1], [1, 0], [1, 1]] as const) {
+  sim.set({ a, b });
+  sim.run();
+  console.log(`${a} XOR ${b} = ${sim.read("out")}`);
+}
+```
+
+## Setting inputs
+
+`set()` takes some or all of the external inputs. The changes are scheduled for the **current** tick and applied by the next `tick()` or `run()`.
+
+```ts
+sim.set({ a: 1 }); // b keeps its previous value
+```
+
+- Inputs you have never set stay `"X"`.
+- Setting an input to its current value schedules nothing.
+- Unknown input names and invalid values (`true`, `2`, `"x"`) throw a `SimulationError`, and the whole call is rejected without applying anything.
+
+## Advancing time
+
+| Method | Behavior |
+| --- | --- |
+| `tick()` | Processes exactly one tick and advances time by one, even if nothing is scheduled |
+| `run()` | Ticks until the circuit is stable and returns `{ ticks, tick }` |
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+const sim = simulate(AND);
+sim.set({ a: 1, b: 1 });
+
+sim.tick(); // tick 0: inputs applied, the NAND is evaluated
+sim.tick(); // tick 1: the NAND output changes, the NOT is evaluated
+console.log(sim.read("out")); // "X", not there yet
+sim.tick(); // tick 2: the NOT output changes
+console.log(sim.read("out")); // 1
+
+console.log(sim.run()); // { ticks: 0, tick: 3 }, already stable
+```
+
+Single-stepping with `tick()` is how you watch propagation, or observe a circuit that never settles.
+
+## Reading outputs
+
+`read(name)` returns one external output and `readAll()` returns all of them. Neither advances time or evaluates anything, so a read straight after `set()` returns the old value:
+
+```ts
+import { simulate } from "wires";
+import { NOT } from "wires/components";
+
+const sim = simulate(NOT);
+sim.set({ a: 0 });
+console.log(sim.read("out")); // "X": nothing has run yet
+sim.run();
+console.log(sim.read("out")); // 1
+```
+
+For internal signals, use [`inspect()`](/guides/introspection#state).
+
+## The tick limit
+
+`run()` executes at most `maxTicks` ticks per call (default `10_000`). If the circuit hasn't stabilized by then, it throws a [`StabilizationError`](/reference/errors). The simulator stays usable afterwards. Change the inputs so the circuit can settle, or call `reset()`.
+
+```ts
+import { simulate, StabilizationError } from "wires";
+import { SRLatch } from "wires/components";
+
+const latch = simulate(SRLatch, { maxTicks: 100 });
+latch.set({ setN: 0, resetN: 0 });
+latch.run();
+latch.set({ setN: 1, resetN: 1 }); // both released at once: a race
+
+try {
+  latch.run();
+} catch (error) {
+  if (error instanceof StabilizationError) {
+    console.log(error.ticksExecuted); // 100
+    console.log(error.components); // ["root.bottom", "root.top"]
+  }
+}
+```
+
+## Resetting
+
+`reset()` restores the initial state: time 0, every signal `"X"` (inputs included), an empty event queue and an empty trace. The next tick evaluates every gate again.
+
+<Warning>
+  If a primitive's evaluator throws a `SimulationError` partway through a tick, the simulator may be left mid-tick. Call `reset()` before using it again.
+</Warning>
+
+## Independent simulators
+
+Every `simulate()` call has its own state, so you can run as many as you like on one definition:
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+const first = simulate(AND);
+const second = simulate(AND);
+first.set({ a: 1, b: 1 });
+second.set({ a: 0, b: 1 });
+first.run();
+second.run();
+console.log(first.read("out"), second.read("out")); // 1 0
+```
+
+Elaboration is cached per definition, so creating extra simulators is cheap.

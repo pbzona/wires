@@ -1,0 +1,50 @@
+---
+title: "Routing"
+description: "Two-way multiplexer and demultiplexer."
+icon: "split"
+---
+
+## Mux
+
+Selects one of two inputs: `out = a` when `select = 0`, and `out = b` when `select = 1`. Children: `notSelect`, `pickA`, `pickB`, `combine`.
+
+| select | out |
+| --- | --- |
+| 0 | a |
+| 1 | b |
+| X | X, unless both data paths are forced (for example `a = b = 0`) |
+
+```ts
+import { simulate } from "wires";
+import { Mux } from "wires/components";
+
+const sim = simulate(Mux);
+sim.set({ a: 0, b: 1, select: 1 });
+sim.run();
+console.log(sim.read("out")); // 1
+```
+
+<Note>
+  With `a = b = 1` and `select = "X"`, the output is `"X"`, even though an ideal mux would output `1`. The NAND network can't prove the result, and the simulator doesn't guess.
+</Note>
+
+## Demux
+
+Routes `in` to output `a` when `select = 0`, or to output `b` when `select = 1`. The unselected output is `0`. Children: `notSelect`, `toA`, `toB`.
+
+| in | select | a | b |
+| --- | --- | --- | --- |
+| 0 | 0 | 0 | 0 |
+| 0 | 1 | 0 | 0 |
+| 1 | 0 | 1 | 0 |
+| 1 | 1 | 0 | 1 |
+
+```ts
+import { simulate } from "wires";
+import { Demux } from "wires/components";
+
+const sim = simulate(Demux);
+sim.set({ in: 1, select: 0 });
+sim.run();
+console.log(sim.readAll()); // { a: 1, b: 0 }
+```

@@ -1,0 +1,8 @@
+# Workspace tooling, not documentation content
+node_modules/
+.turbo/
+.snippets/
+scripts/
+README.md
+package.json
+tsconfig.json

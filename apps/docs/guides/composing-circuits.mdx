@@ -1,0 +1,128 @@
+---
+title: "Composing circuits"
+description: "Build composite circuits with add and connect, at any depth."
+icon: "layers"
+---
+
+A composite circuit is defined with [`circuit()`](/reference/circuit): a spec with its name and external ports, plus a builder callback that adds components and connects them.
+
+```ts
+import { circuit, simulate } from "wires";
+import { NAND } from "wires/components";
+
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
+  const g = add(NAND, "g");
+  connect(inputs.a, g.inputs.a);
+  connect(inputs.a, g.inputs.b);
+  connect(g.outputs.out, outputs.out);
+});
+
+const AND = circuit(
+  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
+  ({ inputs, outputs, add, connect }) => {
+    const nand = add(NAND, "nand");
+    const not = add(NOT, "not"); // composites are added exactly like primitives
+    connect(inputs.a, nand.inputs.a);
+    connect(inputs.b, nand.inputs.b);
+    connect(nand.outputs.out, not.inputs.a);
+    connect(not.outputs.out, outputs.out);
+  },
+);
+
+const sim = simulate(AND);
+sim.set({ a: 1, b: 1 });
+sim.run();
+console.log(sim.read("out")); // 1
+```
+
+## The builder context
+
+| Member | Description |
+| --- | --- |
+| `inputs` | The circuit's external inputs. Inside the circuit they are sources. |
+| `outputs` | The circuit's external outputs. Inside the circuit they are sinks. |
+| `add(definition, name?)` | Instantiates a primitive or composite and returns its instance |
+| `connect(source, destination)` | Connects a source port to a sink port and returns the connection |
+
+`add` doesn't care whether a definition is primitive or composite. Nesting depth is unlimited.
+
+## Naming instances
+
+Instance names are optional:
+
+- **Explicit names** must be identifiers and unique within the circuit. `inputs` and `outputs` are reserved.
+- **Generated names** have the form `<Definition>#<n>`, counted per definition in the order you call `add`, for example `XOR#0` and `XOR#1`. They can never collide with explicit names, because `#` isn't allowed in an identifier.
+
+Explicit names make hierarchical paths more readable (`root.fa3.or` rather than `root.FullAdder#3.OR#0`), so prefer them for anything you plan to inspect.
+
+## Wiring rules
+
+```ts
+import { circuit } from "wires";
+import { NAND } from "wires/components";
+
+circuit({ name: "Rules", inputs: ["a"], outputs: ["out", "copy"] }, ({ inputs, outputs, add, connect }) => {
+  const g = add(NAND, "g");
+
+  connect(inputs.a, g.inputs.a); // ✓ circuit input to child input
+  connect(inputs.a, g.inputs.b); // ✓ fan-out from one source
+  connect(g.outputs.out, outputs.out); // ✓ child output to circuit output
+  connect(inputs.a, outputs.copy); // ✓ direct input-to-output wire (no delay)
+
+  // @ts-expect-error: a child input is not a source
+  connect(g.inputs.a, outputs.out);
+});
+```
+
+The builder checks the following, and reports problems as a `CircuitError` prefixed with the circuit name:
+
+| Check | When |
+| --- | --- |
+| Duplicate or invalid instance names | During `add` |
+| Wrong direction (sink used as a source, or the reverse) | During `connect` |
+| Ports that don't exist, or that belong to another circuit's instances | During `connect` |
+| A sink that already has a driver | During `connect` |
+| Child inputs left unconnected | After the builder returns |
+| Circuit outputs left undriven | After the builder returns |
+
+All the unconnected inputs and undriven outputs are reported together:
+
+```text
+HalfBroken: Invalid circuit:
+  - input n.inputs.b is not connected
+  - output outputs.other is not driven
+```
+
+Unused circuit inputs and unconnected child outputs are fine.
+
+## Lazy, memoized construction
+
+The builder callback does not run when you call `circuit()`. It runs **once**, the first time the circuit is used: when it is added to another circuit, described, elaborated or simulated. The result is validated and cached.
+
+This is what makes recursion detectable. A definition that contains itself, directly or through other definitions, can't be elaborated into a finite circuit:
+
+```text
+A: Recursive component definition cannot be elaborated into a finite circuit: A -> B -> A
+```
+
+Builders must be synchronous. Returning a promise throws a `CircuitError`. The builder context can't be used after the callback returns.
+
+## Feedback
+
+Connecting an output back into an earlier input is allowed and is never rejected just because it forms a cycle:
+
+```ts
+import { circuit } from "wires";
+import { NAND } from "wires/components";
+
+const Loop = circuit({ name: "Loop", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
+  const n = add(NAND, "n");
+  connect(inputs.a, n.inputs.a);
+  connect(n.outputs.out, n.inputs.b); // feedback
+  connect(n.outputs.out, outputs.out);
+});
+```
+
+The one exception is a loop made only of wires, with no gate anywhere in it. That can happen through pass-through composites, and since such a net has no driver, it is reported during elaboration.
+
+See [Sequential logic](/guides/sequential-logic) for feedback that stores state.

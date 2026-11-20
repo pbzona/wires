@@ -1,0 +1,69 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "wires",
+  "description": "Build digital logic from a single NAND gate up, then simulate and inspect it, in TypeScript.",
+  "colors": {
+    "primary": "#C2410C",
+    "light": "#FB923C",
+    "dark": "#9A3412"
+  },
+  "favicon": "/favicon.svg",
+  "icons": {
+    "library": "lucide"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Concepts",
+            "pages": ["concepts/signals", "concepts/components", "concepts/simulation-model"]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/primitive-gates",
+              "guides/composing-circuits",
+              "guides/running-simulations",
+              "guides/sequential-logic",
+              "guides/introspection",
+              "guides/four-bit-adder"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Standard library",
+        "groups": [
+          {
+            "group": "Components",
+            "pages": ["library/overview", "library/gates", "library/arithmetic", "library/routing", "library/memory"]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "Defining components",
+            "pages": ["reference/gate", "reference/circuit"]
+          },
+          {
+            "group": "Simulation",
+            "pages": ["reference/simulate", "reference/elaborate"]
+          },
+          {
+            "group": "Types and errors",
+            "pages": ["reference/types", "reference/errors"]
+          }
+        ]
+      }
+    ]
+  }
+}

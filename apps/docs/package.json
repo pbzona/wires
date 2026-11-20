@@ -1,0 +1,16 @@
+{
+  "name": "docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "mint dev",
+    "lint": "mint validate && mint broken-links",
+    "test": "node scripts/check-snippets.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "mint": "^4.3.76",
+    "typescript": "^7.0.2",
+    "wires": "workspace:*"
+  }
+}

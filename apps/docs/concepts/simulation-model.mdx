@@ -1,0 +1,74 @@
+---
+title: "Simulation model"
+description: "Discrete ticks, unit gate delays, event scheduling and stabilization."
+icon: "timer"
+---
+
+`wires` uses a deterministic, discrete-time simulation. Time only advances when you call `tick()` or `run()`.
+
+## Elaboration
+
+Before simulating, the hierarchy is **elaborated** into a flat graph of primitive gates and **nets**. Each connection makes its destination an alias of its source, so a net is a single driver plus every port wired to it. A net is named after its driver, which is either a root input (`root.inputs.a`) or a primitive output (`root.nand.outputs.out`).
+
+The hierarchy isn't lost. Each primitive keeps its full path (`root.not.g`) and its list of composite ancestors. See [`elaborate()`](/reference/elaborate).
+
+## Delays
+
+- **Every primitive gate has a delay of one tick.**
+- **Wires have no delay**, including a direct connection from an input to an output.
+
+## What happens in a tick
+
+<Steps>
+  <Step title="Apply scheduled changes">
+    Signal changes scheduled for the current tick are applied, in net-id order.
+  </Step>
+  <Step title="Find affected gates">
+    Gates that read a changed signal are marked for evaluation. The very first tick evaluates every gate once, even though no input has changed.
+  </Step>
+  <Step title="Evaluate against one snapshot">
+    The marked gates are evaluated. Evaluation never writes a signal directly, so every gate in the tick sees the same consistent snapshot.
+  </Step>
+  <Step title="Schedule changed outputs">
+    An output whose new value differs from its current value is scheduled for the next tick. Unchanged outputs create no events.
+  </Step>
+  <Step title="Advance time">
+    The tick counter increases by one.
+  </Step>
+</Steps>
+
+Gates and nets are processed in sorted id order, so the result never depends on the order you declared components or connections in.
+
+### Example: AND from NAND
+
+With `a = 1` and `b = 1`, the standard `AND` (a NAND followed by a NOT) settles in three ticks:
+
+| Tick | What happens |
+| --- | --- |
+| 0 | Inputs change to 1. The NAND is evaluated and schedules 0. |
+| 1 | The NAND output becomes 0. The NOT's gate is evaluated and schedules 1. |
+| 2 | The NOT output becomes 1, and so does `root.outputs.out`. Nothing else is scheduled. |
+
+After `run()`, `inspect().tick` is `3`, the next tick to be processed.
+
+## Stabilization
+
+A circuit is **stable** when no signal changes are scheduled and every gate has had its initial evaluation. `run()` ticks until that's true.
+
+Each `run()` call may execute at most `maxTicks` ticks (default `10_000`). If the circuit still hasn't settled, `run()` throws a [`StabilizationError`](/reference/errors) describing the current tick, how many ticks ran, the most recent transitions and the gates involved. An unstable circuit can never hang your process.
+
+## Feedback
+
+The graph can contain cycles, and the simulator does not rely on topological sorting. Feedback circuits fall into one of three outcomes:
+
+| Outcome | Example | Result |
+| --- | --- | --- |
+| Stable | An SR latch after a set or reset | `run()` returns and the outputs hold |
+| Stable but unknown | An SR latch that was never set | `run()` returns and the outputs are `"X"` |
+| Never settles | A ring oscillator, or a latch released from its forbidden state | `run()` throws `StabilizationError` |
+
+## Determinism and isolation
+
+- The same definition, inputs and call sequence always produce the same values and the same trace.
+- Each `simulate()` call creates an independent simulator. Simulators that share a definition share no mutable state.
+- Reading values with `read`, `readAll` or `inspect` never advances time or evaluates anything.

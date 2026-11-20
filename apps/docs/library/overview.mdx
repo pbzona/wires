@@ -1,0 +1,53 @@
+---
+title: "Standard library"
+description: "Ready-made components, all built from a single NAND primitive."
+icon: "boxes"
+---
+
+`wires/components` is a collection of useful parts and a demonstration of the toolkit. **NAND is its only primitive.** Every other component is a NAND network built with the same public `circuit()` API you use, with no privileged access to the simulator.
+
+```ts
+import { FullAdder, Mux, NAND, SRLatch, XOR } from "wires/components";
+```
+
+| Component | Inputs | Outputs | NAND gates | Page |
+| --- | --- | --- | --- | --- |
+| `NAND` | a, b | out | 1 (primitive) | [Gates](/library/gates) |
+| `NOT` | a | out | 1 | [Gates](/library/gates) |
+| `AND` | a, b | out | 2 | [Gates](/library/gates) |
+| `OR` | a, b | out | 3 | [Gates](/library/gates) |
+| `NOR` | a, b | out | 4 | [Gates](/library/gates) |
+| `XOR` | a, b | out | 4 | [Gates](/library/gates) |
+| `XNOR` | a, b | out | 5 | [Gates](/library/gates) |
+| `HalfAdder` | a, b | sum, carry | 6 | [Arithmetic](/library/arithmetic) |
+| `FullAdder` | a, b, carryIn | sum, carryOut | 15 | [Arithmetic](/library/arithmetic) |
+| `Mux` | a, b, select | out | 4 | [Routing](/library/routing) |
+| `Demux` | in, select | a, b | 5 | [Routing](/library/routing) |
+| `SRLatch` | setN, resetN | q, qBar | 2 | [Memory](/library/memory) |
+
+## Unknown values
+
+Because these components are pure NAND networks, they inherit NAND's handling of `"X"`. That is sometimes more pessimistic than the ideal truth table. For example, `Mux` outputs `"X"` when `select` is `"X"`, even if `a` and `b` are equal. This is deliberate. It's what the gate-level circuit would actually compute.
+
+## Timing
+
+Each NAND adds one tick, so a component's settle time depends on the longest NAND path its signals take. `AND` settles in 3 ticks from an input change (2 NAND levels, plus the tick that applies the input). Use `run()` to wait for any component, or `tick()` to watch it settle.
+
+## Building on the library
+
+The standard components are ordinary definitions. Add them to your own circuits, inspect them with `describe()`, or read their source as worked examples.
+
+<CardGroup cols={2}>
+  <Card title="Gates" icon="cpu" href="/library/gates">
+    NAND, NOT, AND, OR, NOR, XOR, XNOR
+  </Card>
+  <Card title="Arithmetic" icon="calculator" href="/library/arithmetic">
+    Half and full adders
+  </Card>
+  <Card title="Routing" icon="split" href="/library/routing">
+    Multiplexer and demultiplexer
+  </Card>
+  <Card title="Memory" icon="memory-stick" href="/library/memory">
+    NAND SR latch
+  </Card>
+</CardGroup>

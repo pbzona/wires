@@ -1,0 +1,97 @@
+---
+title: "Components"
+description: "Definitions, instances, ports, connections and circuits."
+icon: "cpu"
+---
+
+`wires` has one central idea: **a primitive gate and a complex circuit expose the same interface.** Anything you define can be used as a building block inside something else.
+
+## Component definitions
+
+A `ComponentDefinition` is a reusable, immutable description of a component. There are two kinds:
+
+| Kind | Created with | Behavior comes from |
+| --- | --- | --- |
+| `"primitive"` | [`gate()`](/reference/gate) | An explicit `evaluate` function |
+| `"composite"` | [`circuit()`](/reference/circuit) | Other components wired together |
+
+Both kinds have the same shape:
+
+```ts
+interface ComponentDefinition<I extends string, O extends string> {
+  readonly kind: "primitive" | "composite";
+  readonly name: string;
+  readonly inputs: readonly I[];
+  readonly outputs: readonly O[];
+  describe(): ComponentDescription;
+}
+```
+
+Definitions are frozen and hold no simulation state, so you can share one definition across any number of circuits and simulators.
+
+## Instances
+
+When a circuit calls `add(definition, name?)`, it creates a `ComponentInstance`: one occurrence of that definition inside the circuit. Two instances of the same definition are fully independent. They have different names, different hierarchical paths and separate signal values.
+
+```ts
+import { circuit } from "wires";
+import { NOT } from "wires/components";
+
+const TwoInverters = circuit(
+  { name: "TwoInverters", inputs: ["a", "b"], outputs: ["x", "y"] },
+  ({ inputs, outputs, add, connect }) => {
+    const first = add(NOT); // named "NOT#0"
+    const second = add(NOT); // named "NOT#1"
+    connect(inputs.a, first.inputs.a);
+    connect(inputs.b, second.inputs.a);
+    connect(first.outputs.out, outputs.x);
+    connect(second.outputs.out, outputs.y);
+  },
+);
+```
+
+## Ports
+
+A port is a named terminal on a component. Each port has:
+
+- an `id` unique within its component, such as `"inputs.a"` or `"outputs.out"`
+- a `name` and a `direction` (`"input"` or `"output"`)
+- an `owner`, which is either an instance or the circuit being defined
+- a `role` (`"source"` or `"sink"`) that says how the port can be used in the current circuit
+
+Ports are structural references only. They never hold values.
+
+### Sources and sinks
+
+Inside a circuit, signals flow from **sources** to **sinks**:
+
+| Port | Role inside the circuit |
+| --- | --- |
+| The circuit's own inputs (`inputs.a`) | Source |
+| A child's outputs (`g.outputs.out`) | Source |
+| A child's inputs (`g.inputs.a`) | Sink |
+| The circuit's own outputs (`outputs.out`) | Sink |
+
+`connect(source, destination)` only accepts a source followed by a sink. Getting it backwards is a compile-time error, and the same check runs again at runtime.
+
+## Connections
+
+A connection is a directed link from one source to one sink.
+
+- **Fan-out is allowed.** One source can drive any number of sinks.
+- **One driver per sink.** Connecting a second source to the same sink throws a `CircuitError`.
+- **Cycles are allowed.** Feedback is how memory works. See [Sequential logic](/guides/sequential-logic).
+
+## Circuits and hierarchy
+
+A circuit is a hierarchical graph of external ports, child instances and connections. Every element gets a stable hierarchical id rooted at `root`:
+
+```text
+root                     the circuit being simulated or described
+root.inputs.a            one of its input ports
+root.not                 a child instance named "not"
+root.not.g               a NAND gate inside that child
+root.not.g.outputs.out   that gate's output port
+```
+
+These ids are identical across runs, and they are the keys used by [`describe()`](/guides/introspection), [`elaborate()`](/reference/elaborate), `inspect()` and `trace()`.

@@ -1,0 +1,66 @@
+---
+title: "Signals"
+description: "The three-valued logic that every wire carries."
+icon: "binary"
+---
+
+A signal is a discrete digital value:
+
+```ts
+type Signal = 0 | 1 | "X";
+```
+
+| Value | Meaning |
+| --- | --- |
+| `0` | Logic low |
+| `1` | Logic high |
+| `"X"` | Unknown or uninitialized |
+
+## Unknown values
+
+Every signal in a new simulator starts as `"X"`. External inputs stay unknown until you assign them with `set()`. Primitives decide how unknowns propagate. NAND, for example, follows this table:
+
+| a | b | NAND |
+| --- | --- | --- |
+| 0 | X | 1 |
+| X | 0 | 1 |
+| 1 | X | X |
+| X | 1 | X |
+| X | X | X |
+
+A `0` on either input forces the output high, so the unknown on the other input doesn't matter. In every other unknown case the result is unknown too.
+
+The simulator never resolves `"X"` to `0` or `1` on its own. A latch that has never been set reports `"X"` on both outputs, which is the honest answer.
+
+## Numbers, not booleans
+
+Signals are the numbers `0` and `1`, not JavaScript booleans, and the library never relies on truthiness. Compare with `===`:
+
+```ts
+import { gate } from "wires";
+
+const AND3 = gate({
+  name: "AND3",
+  inputs: ["a", "b", "c"],
+  outputs: ["out"],
+  evaluate: ({ a, b, c }) => ({
+    out: a === 0 || b === 0 || c === 0 ? 0 : a === 1 && b === 1 && c === 1 ? 1 : "X",
+  }),
+});
+```
+
+Passing `true`, `2` or `"x"` where a signal is expected fails to type-check, and throws a `SimulationError` at runtime.
+
+## Helpers
+
+`wires` exports a few small helpers for working with signals:
+
+| Export | Description |
+| --- | --- |
+| `X` | The constant `"X"` |
+| `SIGNALS` | `[0, 1, "X"]`, frozen |
+| `isSignal(value)` | Type guard that is true for `0`, `1` and `"X"` |
+
+<Note>
+  High-impedance (`Z`) signals and multi-driver buses are out of scope for now. Each destination has exactly one driver.
+</Note>

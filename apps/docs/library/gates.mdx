@@ -1,0 +1,109 @@
+---
+title: "Gates"
+description: "NAND, NOT, AND, OR, NOR, XOR and XNOR."
+icon: "cpu"
+---
+
+All gates use the inputs `a, b` (or just `a` for `NOT`) and the output `out`.
+
+## NAND
+
+The library's only primitive.
+
+| a | b | out |
+| --- | --- | --- |
+| 0 | 0 | 1 |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 0 |
+| 0 | X | 1 |
+| X | 0 | 1 |
+| 1 | X | X |
+| X | 1 | X |
+| X | X | X |
+
+```ts
+import { simulate } from "wires";
+import { NAND } from "wires/components";
+
+const sim = simulate(NAND);
+sim.set({ a: 0 }); // b stays "X"
+sim.run();
+console.log(sim.read("out")); // 1, because a 0 input dominates
+```
+
+## NOT
+
+`NAND(a, a)`. Child: `g`.
+
+| a | out |
+| --- | --- |
+| 0 | 1 |
+| 1 | 0 |
+| X | X |
+
+## AND
+
+`NOT(NAND(a, b))`. Children: `nand`, `not`.
+
+| a | b | out |
+| --- | --- | --- |
+| 0 | 0 | 0 |
+| 0 | 1 | 0 |
+| 1 | 0 | 0 |
+| 1 | 1 | 1 |
+
+## OR
+
+`NAND(NOT a, NOT b)`. Children: `notA`, `notB`, `nand`.
+
+| a | b | out |
+| --- | --- | --- |
+| 0 | 0 | 0 |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 1 |
+
+## NOR
+
+`NOT(OR(a, b))`. Children: `or`, `not`.
+
+| a | b | out |
+| --- | --- | --- |
+| 0 | 0 | 1 |
+| 0 | 1 | 0 |
+| 1 | 0 | 0 |
+| 1 | 1 | 0 |
+
+## XOR
+
+The classic four-NAND network. Children: `n1`–`n4`.
+
+```text
+n1 = NAND(a, b)
+n2 = NAND(a, n1)
+n3 = NAND(b, n1)
+out = NAND(n2, n3)
+```
+
+| a | b | out |
+| --- | --- | --- |
+| 0 | 0 | 0 |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 0 |
+
+<Note>
+  Changing both inputs in the same tick, for example from `0, 0` to `1, 1`, makes the XOR output glitch briefly before it settles back to `0`. That hazard is real gate-level behavior, and it shows up in `trace()`.
+</Note>
+
+## XNOR
+
+`NOT(XOR(a, b))`. Children: `xor`, `not`.
+
+| a | b | out |
+| --- | --- | --- |
+| 0 | 0 | 1 |
+| 0 | 1 | 0 |
+| 1 | 0 | 0 |
+| 1 | 1 | 1 |

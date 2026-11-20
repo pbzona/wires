@@ -1,0 +1,124 @@
+---
+title: "Types"
+description: "Public types exported from wires."
+icon: "braces"
+---
+
+All types are exported from `wires`. Import them with `import type`.
+
+## Signal
+
+```ts
+type Signal = 0 | 1 | "X";
+```
+
+## SignalTransition
+
+```ts
+type SignalTransition = {
+  readonly tick: number;
+  readonly signalId: string; // net id (path of the driving port)
+  readonly previous: Signal;
+  readonly value: Signal;
+};
+```
+
+## ComponentDefinition
+
+```ts
+interface ComponentDefinition<I extends string = string, O extends string = string> {
+  readonly kind: "primitive" | "composite";
+  readonly name: string;
+  readonly inputs: readonly I[];
+  readonly outputs: readonly O[];
+  describe(): ComponentDescription;
+}
+```
+
+## ComponentInstance
+
+Returned by `add()` inside a circuit builder.
+
+```ts
+interface ComponentInstance<I extends string = string, O extends string = string> {
+  readonly kind: "instance";
+  readonly name: string;
+  readonly definition: ComponentDefinition<I, O>;
+  readonly inputs: { readonly [K in I]: Port<K, "input", "sink"> };
+  readonly outputs: { readonly [K in O]: Port<K, "output", "source"> };
+}
+```
+
+## Port, SourcePort, SinkPort
+
+```ts
+type Direction = "input" | "output";
+type PortRole = "source" | "sink";
+
+interface Port<Name extends string = string, D extends Direction = Direction, R extends PortRole = PortRole> {
+  readonly kind: "port";
+  readonly id: string; // e.g. "inputs.a", unique within the owner
+  readonly name: Name;
+  readonly direction: D;
+  readonly role: R;
+  readonly owner: ComponentInstance | CircuitScope;
+}
+
+type SourcePort = Port<string, Direction, "source">;
+type SinkPort = Port<string, Direction, "sink">;
+
+interface CircuitScope {
+  readonly kind: "scope"; // the circuit currently being defined
+  readonly name: string;
+}
+```
+
+`SourcePort` is useful for variables that track a signal through a loop, like the carry in a ripple adder.
+
+## Connection
+
+```ts
+interface Connection {
+  readonly source: SourcePort;
+  readonly destination: SinkPort;
+}
+```
+
+## ComponentDescription
+
+Returned by `describe()`. Plain, serializable data.
+
+```ts
+type ComponentDescription = {
+  readonly id: string; // "root", "root.not", "root.not.g"
+  readonly name: string; // instance name ("root" at the top)
+  readonly parent: string | null;
+  readonly definition: string;
+  readonly kind: "primitive" | "composite";
+  readonly ports: readonly PortDescription[];
+  readonly components: readonly ComponentDescription[];
+  readonly connections: readonly ConnectionDescription[];
+};
+
+type PortDescription = { readonly id: string; readonly name: string; readonly direction: Direction };
+type ConnectionDescription = { readonly source: string; readonly destination: string };
+```
+
+## Spec and builder types
+
+| Type | Used by |
+| --- | --- |
+| `GateSpec<I, O>` | The argument to [`gate()`](/reference/gate) |
+| `CircuitSpec<I, O>` | The first argument to [`circuit()`](/reference/circuit) |
+| `CircuitBuilder<I, O>` | The builder callback's parameter |
+
+## Simulation types
+
+| Type | Description |
+| --- | --- |
+| `Simulator<I, O>` | Returned by [`simulate()`](/reference/simulate) |
+| `SimulationOptions` | `{ maxTicks?, trace? }` |
+| `RunResult` | `{ ticks, tick }` |
+| `SimulationSnapshot` | `{ tick, signals, pendingEvents, stable }` |
+| `Netlist`, `NetInfo`, `GateInfo`, `Ancestor` | Returned by [`elaborate()`](/reference/elaborate) |
+| `StabilizationDetails` | The fields of [`StabilizationError`](/reference/errors) |
