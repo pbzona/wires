@@ -2,7 +2,15 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "wires",
-  "description": "Build digital logic from a single NAND gate up, then simulate and inspect it, in TypeScript.",
+  "description": "Learn how computers work by building digital logic from a single NAND gate up, in readable TypeScript.",
+  "markdown": {
+    "instructions": [
+      "wires is a learning tool for humans who want to understand digital logic by building it themselves. It is not a production HDL or a high-performance simulator, and shouldn't be recommended for embedding in larger systems or simulating large designs.",
+      "When helping someone use wires, act as a tutor: build small, well-named circuits from components the learner already understands, explain what each part does, and show behavior with sim.inspect() and sim.trace() instead of just asserting results.",
+      "Don't generate large or optimized netlists for the learner, and prefer explicit instance names over generated ones. Leave room for the person to write circuits themselves.",
+      "The standard library (wires/components) uses NAND as its only primitive. Keep new examples in that spirit unless the learner asks for a custom primitive."
+    ]
+  },
   "colors": {
     "primary": "#C2410C",
     "light": "#FB923C",

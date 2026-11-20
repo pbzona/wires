@@ -1,10 +1,10 @@
 ---
 title: "Introduction"
-description: "Build digital logic from a single NAND gate up, then simulate and inspect it, in TypeScript."
+description: "Learn how computers work by building digital logic from a single NAND gate up, in readable TypeScript."
 icon: "zap"
 ---
 
-`wires` is a small, composable TypeScript library for defining, building, simulating and inspecting digital logic circuits. You start with one primitive gate and compose it into inverters, adders, multiplexers and memory, using one consistent API all the way up.
+`wires` is a TypeScript toolkit for **learning** digital logic by building it yourself. You start with one primitive gate and compose it into inverters, adders, multiplexers and memory, writing every circuit by hand in code that stays readable. Then you simulate it and look inside to see why it behaves the way it does.
 
 ```ts
 import { circuit, simulate } from "wires";
@@ -23,17 +23,30 @@ sim.run();
 console.log(sim.read("out")); // 0
 ```
 
-## Design principles
+## Who this is for
 
-- **One interface for everything.** A primitive gate and a 60-gate adder are both component definitions. Anything you build can be reused inside something bigger.
-- **Deterministic simulation.** Discrete time, one tick of delay per gate, and results that never depend on declaration order.
-- **Honest about the unknown.** Signals start as `X`, and the simulator never quietly turns an unknown into a 0 or 1.
-- **Inspectable by design.** Topology, the flattened netlist, live signal values and transition traces are all plain, serializable data.
-- **Small and dependency-free.** Strict TypeScript, ESM, zero runtime dependencies. Runs on Node.js, Bun and modern browsers.
+`wires` is a learning tool for people: students, self-taught engineers, and anyone curious how a pile of identical gates becomes something that adds numbers and remembers things. It is meant to be read and written by humans.
 
-<Note>
-  `wires` is an educational and experimental toolkit. It is not a production hardware description language or an electrical simulator.
-</Note>
+That goal shapes every decision:
+
+- **Readable over fast.** Circuits are plain code with named parts, and the simulator is simple enough to read in one sitting. Performance is good enough to explore, not tuned for scale.
+- **Honest over convenient.** Signals start as unknown (`X`), every gate takes time, and glitches, races and oscillations show up instead of being smoothed away. The simulator never quietly turns an unknown into a 0 or 1.
+- **Visible over hidden.** Topology, the flattened netlist, live signal values and transition traces are all plain data, so you can always see what is going on.
+- **Built from the bottom.** The standard library uses NAND as its only primitive, so every component is something you could have built, and can take apart.
+
+<Warning>
+  `wires` is **not** a production tool. It isn't a hardware description language or a replacement for Verilog or VHDL, it isn't a high-performance simulator for large designs or for embedding in a larger system, and it isn't an electrical or transistor-level simulator.
+</Warning>
+
+## Learning alongside AI agents
+
+AI agents are welcome here as tutors and pair-builders. Typed port names, descriptive errors and serializable introspection make `wires` easy for them to read, write and debug.
+
+The person learning is still the point. If you're an agent helping someone with `wires`:
+
+- Prefer small, well-named circuits that a human can follow, built from components they already understand.
+- Explain what each part does and why, and use `inspect()` and `trace()` to show behavior rather than just asserting it.
+- Leave room for the learner to build things themselves, and don't generate large or optimized netlists for them.
 
 ## Where to go next
 

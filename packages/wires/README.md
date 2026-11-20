@@ -1,7 +1,41 @@
 # wires
 
-A small, composable TypeScript library for building digital logic from a single
-NAND gate up to adders and memory, then simulating and inspecting it.
+A TypeScript toolkit for **learning** how digital logic works, by building it
+yourself from a single NAND gate up to adders and memory, then simulating it
+and looking inside.
+
+## Who this is for
+
+`wires` is a learning tool for people. It exists so you can understand how
+computation is built from very simple parts, writing circuits by hand that
+read clearly afterwards. Every design choice favors that goal:
+
+- **Readable over fast.** Circuits are plain code with named parts, and the
+  simulator is simple enough to read in one sitting. Performance is "good
+  enough to explore", not optimized.
+- **Honest over convenient.** Signals start as unknown (`X`), gates take time,
+  glitches and races show up, and nothing is quietly rounded to 0 or 1.
+- **Visible over hidden.** Every wire's value, every transition, and the whole
+  hierarchy can be inspected, so you can see why a circuit does what it does.
+
+It is **not**:
+
+- a production hardware description language, or a replacement for Verilog
+  or VHDL
+- a high-performance simulator for large designs, or a component to embed in
+  a larger system
+- an electrical, analog or transistor-level simulator
+
+### Using it with AI agents
+
+Agents are welcome as tutors and pair-builders. Typed port names, descriptive
+errors and serializable introspection make the library easy for them to work
+with. The person learning is still the point, though. When an agent helps, it
+should prefer small, well-named circuits a human can follow, explain what each
+part does, and leave the learner room to build things themselves. It shouldn't
+produce large generated or optimized netlists.
+
+## Features
 
 - One interface for everything: a primitive gate and a 60-gate adder are both
   `ComponentDefinition`s, and either can be added to another circuit.
@@ -11,9 +45,6 @@ NAND gate up to adders and memory, then simulating and inspecting it.
   signal snapshots and transition traces.
 - Strict TypeScript, ESM only, zero runtime dependencies. Runs on Node.js, Bun
   and modern browsers.
-
-This is an educational toolkit. It is not a production HDL or an electrical
-simulator.
 
 ## Install
 

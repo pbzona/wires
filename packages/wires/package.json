@@ -1,7 +1,15 @@
 {
   "name": "wires",
   "version": "0.1.0",
-  "description": "A small, composable TypeScript toolkit for building and simulating digital logic from NAND gates up.",
+  "description": "A human-readable TypeScript toolkit for learning digital logic by building it from NAND gates up.",
+  "keywords": [
+    "digital-logic",
+    "education",
+    "learning",
+    "nand",
+    "logic-gates",
+    "circuit-simulator"
+  ],
   "type": "module",
   "license": "MIT",
   "sideEffects": false,

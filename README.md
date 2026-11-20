@@ -1,7 +1,15 @@
 # wires
 
-Build digital logic from a single NAND gate up, then simulate and inspect it,
-in TypeScript.
+A TypeScript toolkit for learning how computers work by building digital logic
+yourself, from a single NAND gate up, then simulating it and looking inside.
+
+`wires` is a **learning tool for people**: circuits you can read and write by
+hand, a simulator simple enough to understand, and honest behavior (unknown
+states, gate delays, glitches) instead of shortcuts. It is not a
+production-grade HDL or a high-performance simulator to embed in a larger
+system. AI agents are welcome as tutors and helpers, but the goal is human
+understanding, not generating optimized circuits. See
+[Who this is for](./packages/wires/README.md#who-this-is-for).
 
 This is a [Turborepo](https://turborepo.com) monorepo managed with pnpm.
 
