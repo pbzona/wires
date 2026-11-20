@@ -10,12 +10,12 @@ and looking inside.
 computation is built from very simple parts, writing circuits by hand that
 read clearly afterwards. Every design choice favors that goal:
 
-- **Readable** Circuits are plain code with named parts, and the
+- **Readability** Circuits are plain code with named parts, and the
   simulator is simple enough to read in one sitting. Performance is "good
   enough to explore", not optimized.
-- **Strictly typed** Signals start as unknown (`X`), gates take time,
+- **Strict typing** Signals start as unknown (`X`), gates take time,
   glitches and races show up, and nothing is quietly rounded to 0 or 1.
-- **Observable.** Every wire's value, every transition, and the whole
+- **Observability** Every wire's value, every transition, and the whole
   hierarchy can be inspected, so you can see why a circuit does what it does.
 
 It is **not**:
@@ -65,8 +65,7 @@ There are two entry points:
 type Signal = 0 | 1 | "X"; // "X" means unknown or uninitialized
 ```
 
-Every signal starts as `X`. Logic compares values with `===` and never relies on
-truthiness. `true` is not a signal.
+Every signal starts as `X`. Logic compares values with strict equality.
 
 ## Defining a primitive gate
 
