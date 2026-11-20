@@ -31,13 +31,12 @@ const toNumber = (bits: readonly Signal[]) =>
 
 describe("four-bit ripple-carry adder", () => {
   it("adds all 512 combinations of operands and carry-in", () => {
-    const sim = simulate(RippleCarryAdder4);
+    let sim = simulate(RippleCarryAdder4);
     let checked = 0;
     for (let a = 0; a < 16; a++) {
       for (let b = 0; b < 16; b++) {
         for (const carryIn of [0, 1] as const) {
-          sim.set({ ...bitsOf("a", a), ...bitsOf("b", b), carryIn });
-          sim.run();
+          sim = sim.set({ ...bitsOf("a", a), ...bitsOf("b", b), carryIn }).run();
           const out = sim.readAll();
           const sum = toNumber([out.s0, out.s1, out.s2, out.s3, out.carryOut]);
           expect(sum, `${a} + ${b} + ${carryIn}`).toBe(a + b + carryIn);
@@ -50,10 +49,10 @@ describe("four-bit ripple-carry adder", () => {
 
   it("gives the same answers from a fresh simulator", () => {
     for (const [a, b, carryIn] of [[15, 15, 1], [0, 0, 0], [9, 6, 1], [7, 8, 0]] as const) {
-      const sim = simulate(RippleCarryAdder4);
-      sim.set({ ...bitsOf("a", a), ...bitsOf("b", b), carryIn });
-      sim.run();
-      const out = sim.readAll();
+      const out = simulate(RippleCarryAdder4)
+        .set({ ...bitsOf("a", a), ...bitsOf("b", b), carryIn })
+        .run()
+        .readAll();
       const total = a + b + carryIn;
       expect(out).toEqual({
         s0: total & 1,

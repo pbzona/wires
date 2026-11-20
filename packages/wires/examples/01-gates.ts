@@ -11,14 +11,14 @@ const NAND = gate({
   }),
 });
 
-const sim = simulate(NAND);
+const start = simulate(NAND);
 const values: Signal[] = [0, 1, "X"];
 
 console.log("a b | NAND");
 for (const a of values) {
   for (const b of values) {
-    sim.set({ a, b });
-    sim.run();
-    console.log(`${a} ${b} | ${sim.read("out")}`);
+    // Every row starts from the same initial state: states never change.
+    const settled = start.set({ a, b }).run();
+    console.log(`${a} ${b} | ${settled.read("out")}`);
   }
 }

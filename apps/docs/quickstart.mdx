@@ -72,43 +72,41 @@ The package has two entry points:
   </Step>
 
   <Step title="Simulate it">
-    Simulation only advances when you ask it to.
+    A simulation is a sequence of states. `simulate()` gives you the first one, and `set()` and `run()` each return a new state. The old state never changes.
 
     ```ts
     import { simulate } from "wires";
     import { AND } from "wires/components";
 
-    const sim = simulate(AND);
+    let sim = simulate(AND);
 
-    sim.set({ a: 1, b: 1 });
-    sim.run();
+    sim = sim.set({ a: 1, b: 1 }).run();
     console.log(sim.read("out")); // 1
 
-    sim.set({ a: 0 });
-    sim.run();
+    sim = sim.set({ a: 0 }).run();
     console.log(sim.read("out")); // 0
     ```
+
+    Time only moves when you call `run()` (or `step()`, which moves one tick).
   </Step>
 
   <Step title="Look inside">
-    Every simulator can report the value of every port in the hierarchy.
+    Every state can report the value of every port in the hierarchy, and with tracing on, every change that led to it.
 
     ```ts
     import { simulate } from "wires";
     import { AND } from "wires/components";
 
-    const sim = simulate(AND, { trace: true });
-    sim.set({ a: 1, b: 1 });
-    sim.run();
+    const settled = simulate(AND, { trace: true }).set({ a: 1, b: 1 }).run();
 
-    console.log(sim.inspect().signals["root.nand.outputs.out"]); // 0
-    console.log(sim.trace().length); // 4 transitions
+    console.log(settled.inspect().signals["root.nand.outputs.out"]); // 0
+    console.log(settled.trace().length); // 4 wire changes
     ```
   </Step>
 </Steps>
 
 <Tip>
-  Port names are inferred from your definitions. `sim.read("nope")` or `add(NAND, "nand", { c: inputs.a })` fails at compile time, not at runtime.
+  Port names are inferred from your definitions. `settled.read("nope")` or `add(NAND, "nand", { c: inputs.a })` fails at compile time, not at runtime.
 </Tip>
 
 ## Next steps

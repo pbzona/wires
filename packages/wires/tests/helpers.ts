@@ -5,10 +5,7 @@ export function evaluate<I extends string, O extends string>(
   definition: ComponentDefinition<I, O>,
   inputs: { readonly [K in I]?: Signal },
 ): { [K in O]: Signal } {
-  const sim = simulate(definition);
-  sim.set(inputs);
-  sim.run();
-  return sim.readAll();
+  return simulate(definition).set(inputs).run().readAll();
 }
 
 /** Every assignment of 0/1 to `names`, in binary counting order (first name is the MSB). */

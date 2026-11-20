@@ -20,12 +20,9 @@ describe("NAND primitive", () => {
   });
 
   it("leaves outputs unknown while inputs are unassigned", () => {
-    const sim = simulate(NAND);
-    sim.run();
-    expect(sim.read("out")).toBe("X");
-    sim.set({ a: 0 });
-    sim.run();
-    expect(sim.read("out")).toBe(1);
+    const settled = simulate(NAND).run();
+    expect(settled.read("out")).toBe("X");
+    expect(settled.set({ a: 0 }).run().read("out")).toBe(1);
   });
 });
 
@@ -48,10 +45,9 @@ describe("custom primitives", () => {
 
   it("supports primitives without inputs via the initial evaluation", () => {
     const HIGH = gate({ name: "HIGH", inputs: [], outputs: ["out"], evaluate: () => ({ out: 1 }) });
-    const sim = simulate(HIGH);
-    expect(sim.read("out")).toBe("X");
-    sim.run();
-    expect(sim.read("out")).toBe(1);
+    const start = simulate(HIGH);
+    expect(start.read("out")).toBe("X");
+    expect(start.run().read("out")).toBe(1);
   });
 
   it("can be mixed with standard components", () => {
@@ -72,9 +68,9 @@ describe("custom primitives", () => {
       output("out", g.outputs.out);
     });
   const runError = (inner: ReturnType<typeof badGate>) => {
-    const sim = simulate(wrapped(inner));
+    const start = simulate(wrapped(inner));
     try {
-      sim.run();
+      start.run();
     } catch (error) {
       expect(error).toBeInstanceOf(SimulationError);
       return (error as Error).message;

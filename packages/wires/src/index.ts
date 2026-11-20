@@ -15,15 +15,14 @@ export type {
 } from "./core/component.js";
 export { gate, type GateSpec } from "./core/gate.js";
 export { circuit, type CircuitBuilder, type CircuitSpec, type InputWiring } from "./core/circuit.js";
-export { elaborate, type Ancestor, type GateInfo, type NetInfo, type Netlist } from "./core/elaborate.js";
+export { elaborate, type Ancestor, type GateInfo, type Netlist, type WireInfo } from "./core/elaborate.js";
 
 // Simulation
 export {
   simulate,
-  type RunResult,
   type SimulationOptions,
   type SimulationSnapshot,
-  type Simulator,
+  type SimulationState,
 } from "./simulation/simulator.js";
 
 // Errors

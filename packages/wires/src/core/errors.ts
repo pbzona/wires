@@ -50,7 +50,7 @@ export class StabilizationError extends SimulationError implements Stabilization
 
   constructor(details: StabilizationDetails) {
     const changes = details.recentChanges
-      .map((t) => `  @${t.tick} ${t.signalId}: ${t.previous} -> ${t.value}`)
+      .map((t) => `  @${t.tick} ${t.wire}: ${t.previous} -> ${t.value}`)
       .join("\n");
     const components = details.components.length > 0 ? details.components.join(", ") : "(none)";
     super(

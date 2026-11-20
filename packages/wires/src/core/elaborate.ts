@@ -12,17 +12,21 @@ export type Ancestor = {
   readonly definition: string;
 };
 
-/** One electrical net: a driver plus every port wired to it. */
-export type NetInfo = {
-  /** Net id: the hierarchical path of the driving port. */
+/**
+ * One wire: a single driver (a root input or a primitive output) plus every
+ * port connected to it. Connections add no delay, so all of them always carry
+ * the same value.
+ */
+export type WireInfo = {
+  /** Wire id: the hierarchical path of the driving port. */
   readonly id: string;
-  /** Whether the net is driven by an external input or by a primitive gate output. */
+  /** Whether the wire is driven by an external input or by a primitive gate output. */
   readonly driver: "input" | "gate";
   /** Path of the driving gate, when `driver === "gate"`. */
   readonly gate: string | null;
-  /** Every port path that carries this net's value, in hierarchical order (includes `id`). */
+  /** Every port path that carries this wire's value, in hierarchical order (includes `id`). */
   readonly ports: readonly string[];
-  /** Paths of the gates that read this net. */
+  /** Paths of the gates that read this wire. */
   readonly readers: readonly string[];
 };
 
@@ -34,43 +38,43 @@ export type GateInfo = {
   readonly definition: string;
   /** Composite components containing this gate, outermost first. */
   readonly ancestors: readonly Ancestor[];
-  /** Input port name to net id. */
+  /** Input port name to wire id. */
   readonly inputs: Readonly<Record<string, string>>;
-  /** Output port name to net id. */
+  /** Output port name to wire id. */
   readonly outputs: Readonly<Record<string, string>>;
 };
 
-/** Serializable, flattened view of a circuit: primitive gates and the nets between them. */
+/** Serializable, flattened view of a circuit: primitive gates and the wires between them. */
 export type Netlist = {
   readonly root: string;
   readonly definition: string;
-  /** External input name to net id. */
+  /** External input name to wire id. */
   readonly inputs: Readonly<Record<string, string>>;
-  /** External output name to net id. */
+  /** External output name to wire id. */
   readonly outputs: Readonly<Record<string, string>>;
-  /** Nets sorted by id. */
-  readonly nets: readonly NetInfo[];
+  /** Wires sorted by id. */
+  readonly wires: readonly WireInfo[];
   /** Primitive gates sorted by path. */
   readonly gates: readonly GateInfo[];
   /** Every port path in the hierarchy, in hierarchical (declaration) order. */
   readonly ports: readonly string[];
-  /** Port path to net id. */
-  readonly portNets: Readonly<Record<string, string>>;
+  /** Port path to wire id. */
+  readonly portWires: Readonly<Record<string, string>>;
 };
 
 /** Index-based form of the netlist used by the simulator. Internal. */
 export type CompiledCircuit = {
   readonly netlist: Netlist;
-  readonly netIds: readonly string[];
+  readonly wireIds: readonly string[];
   readonly gates: readonly CompiledGate[];
-  /** Per net: indices of gates reading it, ascending. */
+  /** Per wire: indices of gates reading it, ascending. */
   readonly readers: readonly (readonly number[])[];
-  /** Per net: index of the driving gate, or -1 for external inputs. */
+  /** Per wire: index of the driving gate, or -1 for external inputs. */
   readonly drivers: readonly number[];
-  readonly inputNets: ReadonlyMap<string, number>;
-  readonly outputNets: ReadonlyMap<string, number>;
-  /** Net index for each entry of `netlist.ports`. */
-  readonly portNetIndices: readonly number[];
+  readonly inputWires: ReadonlyMap<string, number>;
+  readonly outputWires: ReadonlyMap<string, number>;
+  /** Wire index for each entry of `netlist.ports`. */
+  readonly portWireIndices: readonly number[];
 };
 
 export type CompiledGate = {
@@ -78,16 +82,16 @@ export type CompiledGate = {
   readonly definition: string;
   readonly evaluate: Evaluator;
   readonly inputNames: readonly string[];
-  readonly inputNets: readonly number[];
+  readonly inputWires: readonly number[];
   readonly outputNames: readonly string[];
-  readonly outputNets: readonly number[];
+  readonly outputWires: readonly number[];
 };
 
 const ROOT = "root";
 const cache = new WeakMap<ComponentDefinition, CompiledCircuit>();
 
 /**
- * Flattens a hierarchical definition into a graph of primitive gates and nets.
+ * Flattens a hierarchical definition into a graph of primitive gates and wires.
  * The hierarchy is preserved through gate paths and ancestor lists.
  */
 export function elaborate(definition: ComponentDefinition): Netlist {
@@ -140,18 +144,18 @@ function build(definition: ComponentDefinition): CompiledCircuit {
   walk(definition, ROOT, []);
 
   // Resolve every port to the port that ultimately drives it.
-  const netOfPort = new Map<string, string>();
+  const wireOfPort = new Map<string, string>();
   const resolve = (port: string): string => {
-    const known = netOfPort.get(port);
+    const known = wireOfPort.get(port);
     if (known !== undefined) return known;
     const chain: string[] = [];
     const onChain = new Set<string>();
     let current = port;
-    let net: string | undefined;
+    let wire: string | undefined;
     for (;;) {
-      const resolved = netOfPort.get(current);
+      const resolved = wireOfPort.get(current);
       if (resolved !== undefined) {
-        net = resolved;
+        wire = resolved;
         break;
       }
       if (onChain.has(current)) {
@@ -165,59 +169,59 @@ function build(definition: ComponentDefinition): CompiledCircuit {
         if (!rootInputs.has(current) && !gateOutputs.has(current)) {
           throw new CircuitError(`Port has no driver: ${current}`, definition.name);
         }
-        net = current;
+        wire = current;
         break;
       }
       current = next;
     }
-    for (const p of chain) netOfPort.set(p, net);
-    return net;
+    for (const p of chain) wireOfPort.set(p, wire);
+    return wire;
   };
   for (const port of ports) resolve(port);
 
-  const netIds = [...new Set(ports.map((p) => netOfPort.get(p)!))].sort();
-  const netIndex = new Map(netIds.map((id, i) => [id, i]));
+  const wireIds = [...new Set(ports.map((p) => wireOfPort.get(p)!))].sort();
+  const wireIndex = new Map(wireIds.map((id, i) => [id, i]));
   rawGates.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
   const gates: CompiledGate[] = rawGates.map((g) => {
-    const netsFor = (names: readonly string[], direction: "input" | "output") =>
-      names.map((name) => netIndex.get(netOfPort.get(portPath(g.path, direction, name))!)!);
+    const wiresFor = (names: readonly string[], direction: "input" | "output") =>
+      names.map((name) => wireIndex.get(wireOfPort.get(portPath(g.path, direction, name))!)!);
     return Object.freeze({
       path: g.path,
       definition: g.definition.name,
       evaluate: g.evaluate,
       inputNames: g.definition.inputs,
-      inputNets: Object.freeze(netsFor(g.definition.inputs, "input")),
+      inputWires: Object.freeze(wiresFor(g.definition.inputs, "input")),
       outputNames: g.definition.outputs,
-      outputNets: Object.freeze(netsFor(g.definition.outputs, "output")),
+      outputWires: Object.freeze(wiresFor(g.definition.outputs, "output")),
     });
   });
 
-  const readers: number[][] = netIds.map(() => []);
-  const drivers: number[] = netIds.map(() => -1);
+  const readers: number[][] = wireIds.map(() => []);
+  const drivers: number[] = wireIds.map(() => -1);
   gates.forEach((g, gi) => {
-    for (const n of new Set(g.inputNets)) readers[n]!.push(gi);
-    for (const n of g.outputNets) drivers[n] = gi;
+    for (const n of new Set(g.inputWires)) readers[n]!.push(gi);
+    for (const n of g.outputWires) drivers[n] = gi;
   });
 
-  const aliases: string[][] = netIds.map(() => []);
-  const portNetIndices = ports.map((p) => {
-    const n = netIndex.get(netOfPort.get(p)!)!;
+  const aliases: string[][] = wireIds.map(() => []);
+  const portWireIndices = ports.map((p) => {
+    const n = wireIndex.get(wireOfPort.get(p)!)!;
     aliases[n]!.push(p);
     return n;
   });
 
-  const record = (names: readonly string[], nets: readonly number[]) =>
-    Object.freeze(Object.fromEntries(names.map((name, i) => [name, netIds[nets[i]!]!])));
-  const inputNets = new Map(definition.inputs.map((name) => [name, netIndex.get(netOfPort.get(portPath(ROOT, "input", name))!)!]));
-  const outputNets = new Map(definition.outputs.map((name) => [name, netIndex.get(netOfPort.get(portPath(ROOT, "output", name))!)!]));
+  const record = (names: readonly string[], wires: readonly number[]) =>
+    Object.freeze(Object.fromEntries(names.map((name, i) => [name, wireIds[wires[i]!]!])));
+  const inputWires = new Map(definition.inputs.map((name) => [name, wireIndex.get(wireOfPort.get(portPath(ROOT, "input", name))!)!]));
+  const outputWires = new Map(definition.outputs.map((name) => [name, wireIndex.get(wireOfPort.get(portPath(ROOT, "output", name))!)!]));
 
   const netlist: Netlist = deepFreeze({
     root: ROOT,
     definition: definition.name,
-    inputs: Object.fromEntries([...inputNets].map(([name, n]) => [name, netIds[n]!])),
-    outputs: Object.fromEntries([...outputNets].map(([name, n]) => [name, netIds[n]!])),
-    nets: netIds.map((id, n) => ({
+    inputs: Object.fromEntries([...inputWires].map(([name, n]) => [name, wireIds[n]!])),
+    outputs: Object.fromEntries([...outputWires].map(([name, n]) => [name, wireIds[n]!])),
+    wires: wireIds.map((id, n) => ({
       id,
       driver: drivers[n] === -1 ? ("input" as const) : ("gate" as const),
       gate: drivers[n] === -1 ? null : gates[drivers[n]!]!.path,
@@ -228,22 +232,22 @@ function build(definition: ComponentDefinition): CompiledCircuit {
       path: g.path,
       definition: g.definition,
       ancestors: rawGates[gi]!.ancestors,
-      inputs: record(g.inputNames, g.inputNets),
-      outputs: record(g.outputNames, g.outputNets),
+      inputs: record(g.inputNames, g.inputWires),
+      outputs: record(g.outputNames, g.outputWires),
     })),
     ports,
-    portNets: Object.fromEntries(ports.map((p) => [p, netOfPort.get(p)!])),
+    portWires: Object.fromEntries(ports.map((p) => [p, wireOfPort.get(p)!])),
   });
 
   return Object.freeze({
     netlist,
-    netIds: Object.freeze(netIds),
+    wireIds: Object.freeze(wireIds),
     gates: Object.freeze(gates),
     readers: Object.freeze(readers.map((r) => Object.freeze(r))),
     drivers: Object.freeze(drivers),
-    inputNets,
-    outputNets,
-    portNetIndices: Object.freeze(portNetIndices),
+    inputWires,
+    outputWires,
+    portWireIndices: Object.freeze(portWireIndices),
   });
 }
 

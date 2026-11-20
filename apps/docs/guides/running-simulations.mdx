@@ -1,124 +1,178 @@
 ---
 title: "Running simulations"
-description: "Set inputs, advance time, read outputs and reset."
+description: "A simulation is a sequence of immutable states: set inputs, step, run and read."
 icon: "play"
 ---
 
-[`simulate(definition, options?)`](/reference/simulate) creates an independent simulator for any definition, primitive or composite.
+[`simulate(definition, options?)`](/reference/simulate) starts a simulation of any definition, primitive or composite, and returns its **first state**.
 
 ```ts
 import { simulate } from "wires";
 import { XOR } from "wires/components";
 
-const sim = simulate(XOR, { maxTicks: 1000, trace: false });
+let sim = simulate(XOR);
 
 for (const [a, b] of [[0, 0], [0, 1], [1, 0], [1, 1]] as const) {
-  sim.set({ a, b });
-  sim.run();
+  sim = sim.set({ a, b }).run();
   console.log(`${a} XOR ${b} = ${sim.read("out")}`);
 }
 ```
 
-## Setting inputs
+## States never change
 
-`set()` takes some or all of the external inputs. The changes are scheduled for the **current** tick and applied by the next `tick()` or `run()`.
-
-```ts
-sim.set({ a: 1 }); // b keeps its previous value
-```
-
-- Inputs you have never set stay `"X"`.
-- Setting an input to its current value schedules nothing.
-- Unknown input names and invalid values (`true`, `2`, `"x"`) throw a `SimulationError`, and the whole call is rejected without applying anything.
-
-## Advancing time
-
-| Method | Behavior |
-| --- | --- |
-| `tick()` | Processes exactly one tick and advances time by one, even if nothing is scheduled |
-| `run()` | Ticks until the circuit is stable and returns `{ ticks, tick }` |
+Every method that moves a simulation forward returns a **new** state. The state you called it on stays exactly as it was:
 
 ```ts
 import { simulate } from "wires";
 import { AND } from "wires/components";
 
-const sim = simulate(AND);
-sim.set({ a: 1, b: 1 });
+const start = simulate(AND);
+const assigned = start.set({ a: 1, b: 1 }); // a new state
+const settled = assigned.run(); // another new state
 
-sim.tick(); // tick 0: inputs applied, the NAND is evaluated
-sim.tick(); // tick 1: the NAND output changes, the NOT is evaluated
-console.log(sim.read("out")); // "X", not there yet
-sim.tick(); // tick 2: the NOT output changes
-console.log(sim.read("out")); // 1
-
-console.log(sim.run()); // { ticks: 0, tick: 3 }, already stable
+console.log(settled.read("out")); // 1
+console.log(start.read("out")); // "X": start is untouched
 ```
 
-Single-stepping with `tick()` is how you watch propagation, or observe a circuit that never settles.
+You can write it step by step with `let` and reassignment, as in the first example, or keep the states you care about in variables. Either way, nothing you're holding ever changes behind your back.
+
+<Warning>
+  The one mistake to watch for is calling a method without using its result. A bare `sim.set({ a: 1 })` creates a new state and throws it away, and `sim` is unchanged. Write `sim = sim.set({ a: 1 })`.
+</Warning>
+
+## Setting inputs
+
+`set()` takes some or all of the external inputs and returns a state where they're pending. They take effect on the next `step()` or `run()`.
+
+```ts
+sim = sim.set({ a: 1 }); // b keeps its previous value
+```
+
+- Inputs you've never set stay `"X"`.
+- Setting inputs to the values they already have returns the same state.
+- Unknown input names and invalid values (`true`, `2`, `"x"`) throw a `SimulationError`, and nothing is applied.
+
+## Moving through time
+
+| Method | Returns |
+| --- | --- |
+| `step()` | A state exactly one tick later, even if nothing was pending |
+| `run()` | A state stepped until it's stable |
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+const s0 = simulate(AND).set({ a: 1, b: 1 });
+const s1 = s0.step(); // tick 0: inputs change, the NAND is evaluated
+const s2 = s1.step(); // tick 1: the NAND output changes, the NOT is evaluated
+const s3 = s2.step(); // tick 2: the NOT output changes
+
+console.log(s2.read("out")); // "X", not there yet
+console.log(s3.read("out")); // 1
+console.log(s3.stable, s3.tick); // true 3
+console.log(s3.run() === s3); // true: already stable
+```
+
+Every state has:
+
+| Property | Meaning |
+| --- | --- |
+| `tick` | Simulation time: the next tick to be processed |
+| `stable` | True when nothing is pending and every gate has had its first evaluation |
+| `changes` | The wire changes applied by the step that produced this state |
+
+To find out how long something took, subtract ticks: `after.tick - before.tick`.
 
 ## Reading outputs
 
-`read(name)` returns one external output and `readAll()` returns all of them. Neither advances time or evaluates anything, so a read straight after `set()` returns the old value:
+`read(name)` returns one external output and `readAll()` returns all of them. Reading never moves time, so a state straight out of `set()` still shows the old values:
 
 ```ts
 import { simulate } from "wires";
 import { NOT } from "wires/components";
 
-const sim = simulate(NOT);
-sim.set({ a: 0 });
-console.log(sim.read("out")); // "X": nothing has run yet
-sim.run();
-console.log(sim.read("out")); // 1
+const assigned = simulate(NOT).set({ a: 0 });
+console.log(assigned.read("out")); // "X": nothing has run yet
+console.log(assigned.run().read("out")); // 1
 ```
 
 For internal signals, use [`inspect()`](/guides/introspection#state).
 
+## Keeping history
+
+Because states never change, history is simply the states you keep. To watch a circuit settle tick by tick:
+
+```ts
+import { simulate } from "wires";
+import { AND } from "wires/components";
+
+let state = simulate(AND).set({ a: 1, b: 1 });
+const history = [state];
+while (!state.stable) {
+  state = state.step();
+  history.push(state);
+}
+
+for (const s of history) console.log(s.tick, s.read("out"), s.changes.map((c) => c.wire));
+```
+
+Starting over works the same way: keep the first state and go back to it. There's no `reset()`, because nothing needs resetting.
+
+## Branching
+
+Any state can be the starting point for several experiments. Settle a latch once, then try different inputs from that same moment:
+
+```ts
+import { simulate } from "wires";
+import { SRLatch } from "wires/components";
+
+const holding = simulate(SRLatch).set({ setN: 0, resetN: 1 }).run().set({ setN: 1 }).run();
+
+const afterReset = holding.set({ resetN: 0 }).run();
+const afterSet = holding.set({ setN: 0 }).run();
+
+console.log(holding.readAll()); // { q: 1, qBar: 0 }
+console.log(afterReset.readAll()); // { q: 0, qBar: 1 }
+console.log(afterSet.readAll()); // { q: 1, qBar: 0 }
+```
+
+Each branch keeps its own [trace](/guides/introspection#trace), and the branches share their common history.
+
 ## The tick limit
 
-`run()` executes at most `maxTicks` ticks per call (default `10_000`). If the circuit hasn't stabilized by then, it throws a [`StabilizationError`](/reference/errors). The simulator stays usable afterwards. Change the inputs so the circuit can settle, or call `reset()`.
+`run()` takes at most `maxTicks` steps per call (default `10_000`). If the circuit still hasn't stabilized, it throws a [`StabilizationError`](/reference/errors) instead of returning. The state you called `run()` on is still valid, so you can change its inputs and try again:
 
 ```ts
 import { simulate, StabilizationError } from "wires";
 import { SRLatch } from "wires/components";
 
-const latch = simulate(SRLatch, { maxTicks: 100 });
-latch.set({ setN: 0, resetN: 0 });
-latch.run();
-latch.set({ setN: 1, resetN: 1 }); // both released at once: a race
+const forbidden = simulate(SRLatch, { maxTicks: 100 }).set({ setN: 0, resetN: 0 }).run();
+const released = forbidden.set({ setN: 1, resetN: 1 }); // both released at once: a race
 
 try {
-  latch.run();
+  released.run();
 } catch (error) {
   if (error instanceof StabilizationError) {
     console.log(error.ticksExecuted); // 100
     console.log(error.components); // ["root.bottom", "root.top"]
   }
 }
+
+console.log(released.set({ resetN: 0 }).run().readAll()); // { q: 0, qBar: 1 }
 ```
 
-## Resetting
+The same goes for evaluator errors. If a primitive throws in the middle of a step, the step never produces a state, and the state you started from is untouched.
 
-`reset()` restores the initial state: time 0, every signal `"X"` (inputs included), an empty event queue and an empty trace. The next tick evaluates every gate again.
+## Independent simulations
 
-<Warning>
-  If a primitive's evaluator throws a `SimulationError` partway through a tick, the simulator may be left mid-tick. Call `reset()` before using it again.
-</Warning>
-
-## Independent simulators
-
-Every `simulate()` call has its own state, so you can run as many as you like on one definition:
+Every `simulate()` call starts a separate simulation. Elaboration is cached per definition, so starting many is cheap:
 
 ```ts
 import { simulate } from "wires";
 import { AND } from "wires/components";
 
-const first = simulate(AND);
-const second = simulate(AND);
-first.set({ a: 1, b: 1 });
-second.set({ a: 0, b: 1 });
-first.run();
-second.run();
+const first = simulate(AND).set({ a: 1, b: 1 }).run();
+const second = simulate(AND).set({ a: 0, b: 1 }).run();
 console.log(first.read("out"), second.read("out")); // 1 0
 ```
-
-Elaboration is cached per definition, so creating extra simulators is cheap.

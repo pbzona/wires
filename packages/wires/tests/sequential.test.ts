@@ -14,125 +14,101 @@ const RingOscillator = circuit(
   },
 );
 
+const catchStabilization = (fn: () => unknown): StabilizationError => {
+  try {
+    fn();
+  } catch (error) {
+    if (error instanceof StabilizationError) return error;
+    throw error;
+  }
+  throw new Error("expected a StabilizationError");
+};
+
 describe("SR latch", () => {
   it("sets", () => {
-    const sim = simulate(SRLatch);
-    sim.set({ setN: 0, resetN: 1 });
-    sim.run();
-    expect(sim.readAll()).toEqual({ q: 1, qBar: 0 });
+    expect(simulate(SRLatch).set({ setN: 0, resetN: 1 }).run().readAll()).toEqual({ q: 1, qBar: 0 });
   });
 
   it("resets", () => {
-    const sim = simulate(SRLatch);
-    sim.set({ setN: 1, resetN: 0 });
-    sim.run();
-    expect(sim.readAll()).toEqual({ q: 0, qBar: 1 });
+    expect(simulate(SRLatch).set({ setN: 1, resetN: 0 }).run().readAll()).toEqual({ q: 0, qBar: 1 });
   });
 
   it("retains its state while both controls are inactive", () => {
-    const sim = simulate(SRLatch);
-    sim.set({ setN: 0, resetN: 1 });
-    sim.run();
-    sim.set({ setN: 1 });
-    sim.run();
-    expect(sim.readAll()).toEqual({ q: 1, qBar: 0 });
+    let latch = simulate(SRLatch).set({ setN: 0, resetN: 1 }).run();
+    latch = latch.set({ setN: 1 }).run();
+    expect(latch.readAll()).toEqual({ q: 1, qBar: 0 });
 
-    sim.set({ resetN: 0 });
-    sim.run();
-    sim.set({ resetN: 1 });
-    sim.run();
-    expect(sim.readAll()).toEqual({ q: 0, qBar: 1 });
+    latch = latch.set({ resetN: 0 }).run().set({ resetN: 1 }).run();
+    expect(latch.readAll()).toEqual({ q: 0, qBar: 1 });
 
     // Further idle ticks change nothing.
-    for (let i = 0; i < 5; i++) sim.tick();
-    expect(sim.readAll()).toEqual({ q: 0, qBar: 1 });
-    expect(sim.inspect().stable).toBe(true);
+    let idle = latch;
+    for (let i = 0; i < 5; i++) idle = idle.step();
+    expect(idle.readAll()).toEqual({ q: 0, qBar: 1 });
+    expect(idle.stable).toBe(true);
   });
 
   it("stays unknown when never initialized", () => {
-    const sim = simulate(SRLatch);
-    sim.set({ setN: 1, resetN: 1 });
-    const result = sim.run();
-    expect(result.ticks).toBeGreaterThan(0);
-    expect(sim.readAll()).toEqual({ q: "X", qBar: "X" });
-    expect(sim.inspect().stable).toBe(true);
+    const start = simulate(SRLatch).set({ setN: 1, resetN: 1 });
+    const settled = start.run();
+    expect(settled.tick).toBeGreaterThan(start.tick);
+    expect(settled.readAll()).toEqual({ q: "X", qBar: "X" });
+    expect(settled.stable).toBe(true);
   });
 
   it("does not treat the forbidden input combination as valid stored state", () => {
-    const sim = simulate(SRLatch, { maxTicks: 50 });
-    sim.set({ setN: 0, resetN: 1 });
-    sim.run();
-    sim.set({ setN: 0, resetN: 0 });
-    sim.run();
+    const forbidden = simulate(SRLatch, { maxTicks: 50 }).set({ setN: 0, resetN: 1 }).run().set({ setN: 0, resetN: 0 }).run();
     // Both outputs high: not a complementary, storable state.
-    expect(sim.readAll()).toEqual({ q: 1, qBar: 1 });
+    expect(forbidden.readAll()).toEqual({ q: 1, qBar: 1 });
     // Releasing both at once races; the simulator reports it rather than picking a winner.
-    sim.set({ setN: 1, resetN: 1 });
-    expect(() => sim.run()).toThrow(StabilizationError);
+    expect(() => forbidden.set({ setN: 1, resetN: 1 }).run()).toThrow(StabilizationError);
   });
 });
 
 describe("feedback loops", () => {
   it("settles an uninitialized loop into a stable unknown state", () => {
-    const sim = simulate(RingOscillator);
-    expect(sim.run().ticks).toBe(1);
-    expect(sim.read("out")).toBe("X");
+    const settled = simulate(RingOscillator).run();
+    expect(settled.tick).toBe(1);
+    expect(settled.read("out")).toBe("X");
   });
 
   it("is stable while disabled", () => {
-    const sim = simulate(RingOscillator);
-    sim.set({ enable: 0 });
-    sim.run();
-    expect(sim.read("out")).toBe(1);
+    expect(simulate(RingOscillator).set({ enable: 0 }).run().read("out")).toBe(1);
   });
 
   it("stops an oscillating loop at the tick limit with a descriptive error", () => {
-    const sim = simulate(RingOscillator, { maxTicks: 100 });
-    sim.set({ enable: 0 });
-    const settled = sim.run();
-    sim.set({ enable: 1 });
+    const disabled = simulate(RingOscillator, { maxTicks: 100 }).set({ enable: 0 }).run();
+    const enabled = disabled.set({ enable: 1 });
+    const error = catchStabilization(() => enabled.run());
 
-    let error: StabilizationError | undefined;
-    try {
-      sim.run();
-    } catch (e) {
-      error = e as StabilizationError;
-    }
-    expect(error).toBeInstanceOf(StabilizationError);
-    expect(error!.ticksExecuted).toBe(100);
-    expect(error!.maxTicks).toBe(100);
-    expect(error!.tick).toBe(settled.tick + 100);
-    expect(error!.recentChanges.length).toBeGreaterThan(0);
-    expect(new Set(error!.recentChanges.map((t) => t.signalId))).toEqual(
+    expect(error.ticksExecuted).toBe(100);
+    expect(error.maxTicks).toBe(100);
+    expect(error.tick).toBe(disabled.tick + 100);
+    expect(error.recentChanges.length).toBeGreaterThan(0);
+    expect(new Set(error.recentChanges.map((t) => t.wire))).toEqual(
       new Set(["root.gate.outputs.out", "root.inv1.g.outputs.out", "root.inv2.g.outputs.out"]),
     );
-    expect(error!.components).toEqual(["root.gate", "root.inv1.g", "root.inv2.g"]);
-    expect(error!.message).toMatch(/did not stabilize after 100 ticks/);
-    expect(error!.message).toMatch(/root\.inv2\.g/);
+    expect(error.components).toEqual(["root.gate", "root.inv1.g", "root.inv2.g"]);
+    expect(error.message).toMatch(/did not stabilize after 100 ticks/);
+    expect(error.message).toMatch(/root\.inv2\.g/);
 
-    // The simulator stays usable: disabling the oscillator lets it settle again.
-    sim.set({ enable: 0 });
-    expect(() => sim.run()).not.toThrow();
-    expect(sim.read("out")).toBe(1);
+    // States are never changed, so the one before the failing run is still usable.
+    expect(enabled.set({ enable: 0 }).run().read("out")).toBe(1);
   });
 
   it("applies the limit per run() call", () => {
-    const sim = simulate(RingOscillator, { maxTicks: 10 });
-    sim.set({ enable: 0 });
-    sim.run();
-    sim.set({ enable: 1 });
-    expect(() => sim.run()).toThrow(StabilizationError);
-    expect(() => sim.run()).toThrow(/after 10 ticks/);
+    const enabled = simulate(RingOscillator, { maxTicks: 10 }).set({ enable: 0 }).run().set({ enable: 1 });
+    expect(() => enabled.run()).toThrow(StabilizationError);
+    let later = enabled;
+    for (let i = 0; i < 25; i++) later = later.step();
+    expect(() => later.run()).toThrow(/after 10 ticks/);
   });
 
-  it("can be single-stepped while oscillating", () => {
-    const sim = simulate(RingOscillator, { trace: true });
-    sim.set({ enable: 0 });
-    sim.run();
-    sim.set({ enable: 1 });
-    for (let i = 0; i < 24; i++) sim.tick();
+  it("can be stepped while oscillating", () => {
+    let sim = simulate(RingOscillator, { trace: true }).set({ enable: 0 }).run().set({ enable: 1 });
+    for (let i = 0; i < 24; i++) sim = sim.step();
     // Three stages, one tick each: the output toggles every three ticks.
-    const toggles = sim.trace().filter((t) => t.signalId === "root.inv2.g.outputs.out" && t.previous !== "X");
+    const toggles = sim.trace().filter((t) => t.wire === "root.inv2.g.outputs.out" && t.previous !== "X");
     expect(toggles.length).toBeGreaterThanOrEqual(6);
     const gaps = toggles.slice(1).map((t, i) => t.tick - toggles[i]!.tick);
     expect(new Set(gaps)).toEqual(new Set([3]));

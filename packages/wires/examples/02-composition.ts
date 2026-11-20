@@ -14,16 +14,17 @@ const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ in
   output("out", not.outputs.out);
 });
 
-const sim = simulate(AND, { trace: true });
-sim.set({ a: 1, b: 1 });
-console.log("run:", sim.run());
-console.log("out:", sim.read("out"));
+let sim = simulate(AND, { trace: true });
+sim = sim.set({ a: 1, b: 1 }).run();
+console.log(`out: ${sim.read("out")} (settled at tick ${sim.tick})`);
 
-sim.set({ a: 0 });
-sim.run();
-console.log("out after a = 0:", sim.read("out"));
+sim = sim.set({ a: 0 }).run();
+console.log(`out after a = 0: ${sim.read("out")}`);
 
 console.log("\nComponents:", AND.describe().components.map((c) => `${c.id} (${c.definition})`));
-console.log("\nState:", sim.inspect());
+console.log("\nWires:");
+for (const [id, wire] of Object.entries(sim.inspect().wires)) {
+  console.log(`  ${id} = ${wire.value}  (${wire.ports.length} ports)`);
+}
 console.log("\nTrace:");
-for (const t of sim.trace()) console.log(`  @${t.tick} ${t.signalId}: ${t.previous} -> ${t.value}`);
+for (const t of sim.trace()) console.log(`  @${t.tick} ${t.wire}: ${t.previous} -> ${t.value}`);

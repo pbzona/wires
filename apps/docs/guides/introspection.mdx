@@ -1,6 +1,6 @@
 ---
 title: "Introspection"
-description: "Topology, netlists, live state and signal traces as plain data."
+description: "Topology, wires, live state and traces as plain data."
 icon: "search"
 ---
 
@@ -9,9 +9,9 @@ Introspection is a first-class feature. There are four views, each serializable 
 | View | Call | Contains |
 | --- | --- | --- |
 | Topology | `definition.describe()` | The hierarchical structure: components, ports and connections |
-| Netlist | `elaborate(definition)` | The flattened graph of primitives and nets |
-| State | `sim.inspect()` | The current value of every port, plus timing |
-| Trace | `sim.trace()` | Every signal transition with its tick |
+| Netlist | `elaborate(definition)` | The flattened graph of primitives and the wires between them |
+| State | `state.inspect()` | The current value of every port and wire, plus timing |
+| Trace | `state.trace()` | Every wire change with its tick |
 
 ## Topology
 
@@ -29,6 +29,12 @@ console.log(d.connections[0]);
 
 Each node has an `id` (its hierarchical path), its `name`, the `parent` id, the `definition` name, its `kind`, its `ports`, child `components` and internal `connections`. Primitives have empty `components` and `connections`. See [`ComponentDescription`](/reference/types#componentdescription).
 
+## Wires
+
+A **wire** is one driver plus every port connected to it. The driver is either one of the circuit's inputs or a gate's output. Connections add no delay, so every port on a wire always has the same value.
+
+A wire is named after its driver. In `AND`, the wire leaving the inner NAND is called `root.nand.outputs.out`, and it also reaches `root.not.inputs.a` and both inputs of the NOT's gate. That's why the trace and the netlist talk about wires, while `signals` lists every port separately.
+
 ## Netlist
 
 [`elaborate()`](/reference/elaborate) returns the flattened graph that the simulator actually runs:
@@ -41,28 +47,28 @@ const netlist = elaborate(AND);
 console.log(netlist.gates.map((g) => g.path)); // ["root.nand", "root.not.g"]
 console.log(netlist.gates[1]?.ancestors);
 // [{ id: "root", definition: "AND" }, { id: "root.not", definition: "NOT" }]
-console.log(netlist.portNets["root.outputs.out"]); // "root.not.g.outputs.out"
+console.log(netlist.portWires["root.outputs.out"]); // "root.not.g.outputs.out"
 ```
 
-Each net lists its driver, every port aliased to it, and the gates that read it. That's useful for highlighting a whole wire when one port is hovered.
+Each wire lists its driver, every port on it, and the gates that read it. That's useful for highlighting a whole wire when one port is hovered.
 
 ## State
 
-`inspect()` returns a snapshot of the simulator:
+`inspect()` turns a simulation state into plain data:
 
 ```ts
 import { simulate } from "wires";
 import { AND } from "wires/components";
 
-const sim = simulate(AND);
-sim.set({ a: 1, b: 1 });
-sim.run();
-console.log(sim.inspect());
+const settled = simulate(AND).set({ a: 1, b: 1 }).run();
+console.log(settled.inspect());
 ```
 
 ```ts
 {
   tick: 3,
+  stable: true,
+  pendingEvents: 0,
   signals: {
     "root.inputs.a": 1,
     "root.inputs.b": 1,
@@ -76,36 +82,46 @@ console.log(sim.inspect());
     "root.not.g.inputs.b": 0,
     "root.not.g.outputs.out": 1
   },
-  pendingEvents: 0,
-  stable: true
+  wires: {
+    "root.inputs.a": { value: 1, ports: ["root.inputs.a", "root.nand.inputs.a"] },
+    "root.inputs.b": { value: 1, ports: ["root.inputs.b", "root.nand.inputs.b"] },
+    "root.nand.outputs.out": {
+      value: 0,
+      ports: ["root.nand.outputs.out", "root.not.inputs.a", "root.not.g.inputs.a", "root.not.g.inputs.b"]
+    },
+    "root.not.g.outputs.out": {
+      value: 1,
+      ports: ["root.outputs.out", "root.not.outputs.out", "root.not.g.outputs.out"]
+    }
+  }
 }
 ```
 
-`signals` has an entry for **every port in the hierarchy**, in hierarchical order, so any wire in a diagram can be colored directly. Each snapshot is a fresh object. Mutating it doesn't affect the simulator.
+- `signals` has an entry for **every port in the hierarchy**, in hierarchical order, so any port in a diagram can be colored directly.
+- `wires` groups those ports by wire, so you can see that a value really is the same wire.
+
+The state itself is immutable, and each snapshot is a fresh plain object.
 
 ## Trace
 
-Enable tracing with `simulate(definition, { trace: true })`. It is off by default to save memory.
+Enable tracing with `simulate(definition, { trace: true })`. It's off by default to save memory.
 
 ```ts
 import { simulate } from "wires";
 import { AND } from "wires/components";
 
-const sim = simulate(AND, { trace: true });
-sim.set({ a: 1, b: 1 });
-sim.run();
-console.log(sim.trace());
+const settled = simulate(AND, { trace: true }).set({ a: 1, b: 1 }).run();
+console.log(settled.trace());
 // [
-//   { tick: 0, signalId: "root.inputs.a", previous: "X", value: 1 },
-//   { tick: 0, signalId: "root.inputs.b", previous: "X", value: 1 },
-//   { tick: 1, signalId: "root.nand.outputs.out", previous: "X", value: 0 },
-//   { tick: 2, signalId: "root.not.g.outputs.out", previous: "X", value: 1 },
+//   { tick: 0, wire: "root.inputs.a", previous: "X", value: 1 },
+//   { tick: 0, wire: "root.inputs.b", previous: "X", value: 1 },
+//   { tick: 1, wire: "root.nand.outputs.out", previous: "X", value: 0 },
+//   { tick: 2, wire: "root.not.g.outputs.out", previous: "X", value: 1 },
 // ]
 ```
 
-- Entries are ordered by tick, and by signal id within a tick, so traces are deterministic.
-- `signalId` is the net id, meaning the path of the driving port. Use `netlist.nets` to map it to every port on that wire.
-- `trace()` returns a frozen copy. Later simulation doesn't change an array you already hold.
-- `reset()` clears the trace.
+- Entries are ordered by tick, and by wire id within a tick, so traces are deterministic.
+- `trace()` returns everything from tick 0 up to the state you call it on. Branches each have their own trace, and they share their common history.
+- Each state also has `changes`: just the entries added by the step that produced it. That's handy when stepping with `step()`.
 
 Traces are the raw material for timing diagrams and waveform views.

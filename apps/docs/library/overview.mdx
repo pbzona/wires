@@ -31,7 +31,7 @@ Because these components are pure NAND networks, they inherit NAND's handling of
 
 ## Timing
 
-Each NAND adds one tick, so a component's settle time depends on the longest NAND path its signals take. `AND` settles in 3 ticks from an input change (2 NAND levels, plus the tick that applies the input). Use `run()` to wait for any component, or `tick()` to watch it settle.
+Each NAND adds one tick, so a component's settle time depends on the longest NAND path its signals take. `AND` settles in 3 ticks from an input change (2 NAND levels, plus the tick that applies the input). Use `run()` to wait for any component, or `step()` to watch it settle one tick at a time.
 
 ## Building on the library
 

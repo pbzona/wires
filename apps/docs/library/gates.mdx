@@ -26,9 +26,7 @@ The library's only primitive.
 import { simulate } from "wires";
 import { NAND } from "wires/components";
 
-const sim = simulate(NAND);
-sim.set({ a: 0 }); // b stays "X"
-sim.run();
+const sim = simulate(NAND).set({ a: 0 }).run(); // b stays "X"
 console.log(sim.read("out")); // 1, because a 0 input dominates
 ```
 

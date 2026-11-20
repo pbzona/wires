@@ -18,7 +18,7 @@ type Signal = 0 | 1 | "X";
 
 ## Unknown values
 
-Every signal in a new simulator starts as `"X"`. External inputs stay unknown until you assign them with `set()`. Primitives decide how unknowns propagate. NAND, for example, follows this table:
+Every signal in a new simulation starts as `"X"`. External inputs stay unknown until you assign them with `set()`. Primitives decide how unknowns propagate. NAND, for example, follows this table:
 
 | a | b | NAND |
 | --- | --- | --- |

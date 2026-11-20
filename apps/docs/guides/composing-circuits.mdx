@@ -21,9 +21,7 @@ const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ in
   output("out", not.outputs.out);
 });
 
-const sim = simulate(AND);
-sim.set({ a: 1, b: 1 });
-sim.run();
+const sim = simulate(AND).set({ a: 1, b: 1 }).run();
 console.log(sim.read("out")); // 1
 ```
 

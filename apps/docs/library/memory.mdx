@@ -19,11 +19,11 @@ A set-reset latch made of two cross-coupled NAND gates, with **active-low** cont
 import { simulate } from "wires";
 import { SRLatch } from "wires/components";
 
-const latch = simulate(SRLatch);
-latch.set({ setN: 0, resetN: 1 });
-latch.run();
-latch.set({ setN: 1 });
-latch.run();
+const latch = simulate(SRLatch)
+  .set({ setN: 0, resetN: 1 }) // set
+  .run()
+  .set({ setN: 1 }) // release
+  .run();
 console.log(latch.readAll()); // { q: 1, qBar: 0 }: the bit is retained
 ```
 

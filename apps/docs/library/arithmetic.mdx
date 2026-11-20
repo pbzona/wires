@@ -49,9 +49,7 @@ Adds three bits. It is built from two half adders and an OR gate. Children: `fir
 import { simulate } from "wires";
 import { FullAdder } from "wires/components";
 
-const sim = simulate(FullAdder);
-sim.set({ a: 1, b: 1, carryIn: 1 });
-sim.run();
+const sim = simulate(FullAdder).set({ a: 1, b: 1, carryIn: 1 }).run();
 console.log(sim.readAll()); // { sum: 1, carryOut: 1 }
 ```
 

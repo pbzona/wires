@@ -47,20 +47,33 @@ Sources are typed as `SourcePort`, so passing a child input as a source, using
 an unknown input name in the `add` record, or naming an unknown output fails at
 compile time. The same checks run again at runtime for untyped callers.
 
-**Elaboration.** The hierarchy is flattened into a netlist. Each connection
-makes its destination an alias of its source, with no delay. Every port path
-(`root.not.g.inputs.a`) resolves to a **net**, named after its single driver:
-either a root input (`root.inputs.a`) or a primitive output
-(`root.nand.outputs.out`). Nets and gates are sorted by id, so simulation
-order never depends on declaration order. Each gate keeps its chain of
-composite ancestors.
+**Elaboration and wires.** The hierarchy is flattened into a netlist. Each
+connection makes its destination an alias of its source, with no delay. Every
+port path (`root.not.g.inputs.a`) resolves to a **wire**, named after its single
+driver: either a root input (`root.inputs.a`) or a primitive output
+(`root.nand.outputs.out`). "Wire" is used instead of the usual hardware term
+"net" because it's the word learners already have. Wires and gates are sorted by
+id, so simulation order never depends on declaration order. Each gate keeps its
+chain of composite ancestors.
 
-**Simulation.** Net values live in a flat `Signal[]`. A tick-keyed event queue
-(`Map<tick, Map<net, Signal>>`) holds pending changes. One tick applies that
-tick's changes (in net order), evaluates only the gates reading changed nets
-(every gate is evaluated on the first tick), and schedules any changed outputs
-for `tick + 1`. All gates in a tick read the same snapshot because writes only
-go to the queue.
+**Simulation as immutable states.** `simulate()` returns the initial
+`SimulationState`. `set()`, `step()` and `run()` return new states and never
+modify the receiver, so callers can keep, compare and branch from any state.
+Each state holds:
+
+- `values`: a frozen `Signal[]` with one entry per wire.
+- `pending`: a map of wire changes to apply on the next step. With unit gate
+  delays, every pending change belongs to the next step, so no tick-keyed queue
+  is needed. Variable delays would bring one back.
+- `firstStep`: true until the first step, which evaluates every gate once.
+- `changes`: the transitions applied by the step that produced the state.
+- `trace`: when tracing, a linked list of per-step transition batches shared
+  between states, so branches share their common history without copying it.
+
+A step copies `values`, applies the pending changes in wire order, evaluates
+only the gates that read a changed wire, and collects their changed outputs as
+the next state's `pending`. Gates never write to `values`, so all of them see
+the same inputs. Copying one array per step is negligible at learning scale.
 
 ## Deviations and clarifications
 
@@ -71,18 +84,21 @@ go to the queue.
   collide with generated ones. `inputs` and `outputs` are reserved instance
   names.
 - **Port names must be unique across inputs and outputs** of a component.
-- **Signals are nets.** `inspect().signals` reports every port path in the
-  hierarchy (a superset of the spec's example). Trace entries use the net id,
-  meaning the driver's path, which matches the trace example in the spec.
-- **Zero-delay wires, unit-delay gates.** Connections, including direct
+- **Signals are wires.** `inspect().signals` reports every port path in the
+  hierarchy (a superset of the spec's example), and `inspect().wires` groups
+  ports by wire. Trace entries name the wire by its driver's path, as in the
+  spec's trace example, but the field is `wire` rather than `signalId`.
+- **Zero-delay connections, unit-delay gates.** Connections, including direct
   input → output wires, add no delay. Each primitive adds one tick.
 - **Wire loops with no gate** (possible through pass-through composites) are
-  rejected during elaboration, because such a net has no driver.
-- **`run()` returns `{ ticks, tick }`**: how many ticks this call executed and
-  the simulation time after it.
+  rejected during elaboration, because such a wire has no driver.
+- **Immutable states instead of a mutable simulator.** The spec's `tick()` is
+  `step()`, because `tick` is the state's time. There's no `reset()`; keep the
+  initial state instead. `run()` returns the settled state, and the ticks it
+  took are `after.tick - before.tick`.
 - **Non-converging runs** throw `StabilizationError`, which carries the current
-  tick, the ticks executed, recent transitions, and the gate paths involved. A
-  bounded buffer of recent transitions is kept even when tracing is off.
+  tick, the ticks executed, recent transitions, and the gate paths involved.
+  `run()` keeps a bounded buffer of recent transitions even when tracing is off.
 - **X pessimism.** Standard components are pure NAND networks, so they inherit
   NAND's X propagation. For example, the multiplexer gives `X` when `select` is
   `X`, even if `a === b`.

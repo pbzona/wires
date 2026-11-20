@@ -34,23 +34,20 @@ const SRLatch = circuit(
 import { simulate } from "wires";
 import { SRLatch } from "wires/components";
 
-const latch = simulate(SRLatch);
+let latch = simulate(SRLatch);
 
-latch.set({ setN: 1, resetN: 1 });
-latch.run();
+latch = latch.set({ setN: 1, resetN: 1 }).run();
 console.log(latch.readAll()); // { q: "X", qBar: "X" }: never initialized
 
-latch.set({ setN: 0 }); // set
-latch.run();
-latch.set({ setN: 1 }); // release
-latch.run();
+latch = latch.set({ setN: 0 }).run(); // set
+latch = latch.set({ setN: 1 }).run(); // release
 console.log(latch.readAll()); // { q: 1, qBar: 0 }: remembers 1
+const rememberedOne = latch;
 
-latch.set({ resetN: 0 }); // reset
-latch.run();
-latch.set({ resetN: 1 }); // release
-latch.run();
+latch = latch.set({ resetN: 0 }).run(); // reset
+latch = latch.set({ resetN: 1 }).run(); // release
 console.log(latch.readAll()); // { q: 0, qBar: 1 }: remembers 0
+console.log(rememberedOne.readAll()); // { q: 1, qBar: 0 }: earlier states never change
 ```
 
 | setN | resetN | Result |
@@ -72,14 +69,11 @@ Holding both controls low drives both outputs to `1`. That isn't a complementary
 import { simulate, StabilizationError } from "wires";
 import { SRLatch } from "wires/components";
 
-const latch = simulate(SRLatch, { maxTicks: 50 });
-latch.set({ setN: 0, resetN: 0 });
-latch.run();
-console.log(latch.readAll()); // { q: 1, qBar: 1 }
+const forbidden = simulate(SRLatch, { maxTicks: 50 }).set({ setN: 0, resetN: 0 }).run();
+console.log(forbidden.readAll()); // { q: 1, qBar: 1 }
 
-latch.set({ setN: 1, resetN: 1 });
 try {
-  latch.run();
+  forbidden.set({ setN: 1, resetN: 1 }).run();
 } catch (error) {
   console.log(error instanceof StabilizationError); // true
 }
@@ -101,22 +95,24 @@ const Ring = circuit({ name: "Ring", inputs: ["enable"], outputs: ["out"] }, ({ 
   output("out", inv2.outputs.out);
 });
 
-const sim = simulate(Ring, { maxTicks: 100, trace: true });
-sim.set({ enable: 0 });
-sim.run(); // stable, out = 1
+const still = simulate(Ring, { maxTicks: 100, trace: true }).set({ enable: 0 }).run(); // stable, out = 1
+const running = still.set({ enable: 1 });
 
-sim.set({ enable: 1 });
 try {
-  sim.run();
+  running.run();
 } catch (error) {
   if (!(error instanceof StabilizationError)) throw error;
   console.log(error.components); // ["root.gate", "root.inv1.g", "root.inv2.g"]
 }
 
-sim.set({ enable: 0 }); // stop it, and the simulator settles again
-sim.run();
+console.log(running.set({ enable: 0 }).run().read("out")); // 1: stopped, and settled again
+
+// Step through the oscillation and watch the output
+let s = running;
+for (let i = 0; i < 12; i++) s = s.step();
+console.log(s.trace().filter((t) => t.wire === "root.inv2.g.outputs.out").map((t) => `@${t.tick}: ${t.value}`));
 ```
 
-With three one-tick stages, the output toggles every three ticks. Step through it with `tick()` and read the timing from `trace()`.
+With three one-tick stages, the output toggles every three ticks. Step through it with `step()` and read the timing from `trace()`.
 
 If you never set `enable`, the loop stays at `"X"`. That's a stable unknown, not an oscillation, because nothing ever changes.

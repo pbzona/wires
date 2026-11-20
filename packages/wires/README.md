@@ -10,12 +10,12 @@ and looking inside.
 computation is built from very simple parts, writing circuits by hand that
 read clearly afterwards. Every design choice favors that goal:
 
-- **Readable over fast.** Circuits are plain code with named parts, and the
+- **Readable** Circuits are plain code with named parts, and the
   simulator is simple enough to read in one sitting. Performance is "good
   enough to explore", not optimized.
-- **Honest over convenient.** Signals start as unknown (`X`), gates take time,
+- **Strictly typed** Signals start as unknown (`X`), gates take time,
   glitches and races show up, and nothing is quietly rounded to 0 or 1.
-- **Visible over hidden.** Every wire's value, every transition, and the whole
+- **Observable.** Every wire's value, every transition, and the whole
   hierarchy can be inspected, so you can see why a circuit does what it does.
 
 It is **not**:
@@ -54,9 +54,9 @@ pnpm add wires   # or npm install wires / bun add wires
 
 There are two entry points:
 
-| Import | Contents |
-|---|---|
-| `wires` | the engine: `gate`, `circuit`, `simulate`, `elaborate`, errors, types |
+| Import             | Contents                                                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `wires`            | the engine: `gate`, `circuit`, `simulate`, `elaborate`, errors, types                                                       |
 | `wires/components` | the standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
 
 ## Signals
@@ -82,15 +82,13 @@ const NAND = gate({
   }),
 });
 
-const sim = simulate(NAND);
-sim.set({ a: 1, b: 1 });
-sim.run();
-sim.read("out"); // 0
+const settled = simulate(NAND).set({ a: 1, b: 1 }).run();
+settled.read("out"); // 0
 ```
 
 `evaluate` must be pure and synchronous, and must return exactly the declared
-outputs. Port names are inferred, so `sim.read("nope")` and `sim.set({ c: 1 })`
-fail to compile. Gates may have any number of inputs and outputs, including
+outputs. Port names are inferred, so `settled.read("nope")` and
+`settled.set({ c: 1 })` fail to compile. Gates may have any number of inputs and outputs, including
 zero inputs (a constant source).
 
 ## Composing circuits
@@ -99,35 +97,39 @@ zero inputs (a constant source).
 import { circuit, simulate } from "wires";
 import { NAND } from "wires/components";
 
-const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
-  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
-  output("out", g.outputs.out);
-});
+const NOT = circuit(
+  { name: "NOT", inputs: ["a"], outputs: ["out"] },
+  ({ inputs, add, output }) => {
+    const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
+    output("out", g.outputs.out);
+  },
+);
 
-const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
-  const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
-  const not = add(NOT, "not", { a: nand.outputs.out }); // composites are added exactly like primitives
-  output("out", not.outputs.out);
-});
+const AND = circuit(
+  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
+  ({ inputs, add, output }) => {
+    const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
+    const not = add(NOT, "not", { a: nand.outputs.out }); // composites are added exactly like primitives
+    output("out", not.outputs.out);
+  },
+);
 
-const sim = simulate(AND);
-sim.set({ a: 1, b: 1 });
-sim.run();
+let sim = simulate(AND);
+sim = sim.set({ a: 1, b: 1 }).run();
 sim.read("out"); // 1
-sim.set({ a: 0 });
-sim.run();
+sim = sim.set({ a: 0 }).run();
 sim.read("out"); // 0
 ```
 
 Each line adds one part and says what feeds it, so signals flow from top to
 bottom. Every wiring call reads **destination ← source**, like an assignment.
 
-| Member | Purpose |
-|---|---|
-| `inputs` | the circuit's own inputs, used as sources for the parts you add |
+| Member                                      | Purpose                                                                |
+| ------------------------------------------- | ---------------------------------------------------------------------- |
+| `inputs`                                    | the circuit's own inputs, used as sources for the parts you add        |
 | `add(definition, name?, { input: source })` | add a part and wire its inputs; unnamed parts get `"<Definition>#<n>"` |
-| `feed(part.inputs.x, source)` | wire an input later, which is how feedback loops are made |
-| `output(name, source)` | drive one of the circuit's own outputs |
+| `feed(part.inputs.x, source)`               | wire an input later, which is how feedback loops are made              |
+| `output(name, source)`                      | drive one of the circuit's own outputs                                 |
 
 Sources are the circuit's inputs and the outputs of parts it added. One source
 can feed any number of inputs, but each input has exactly one source. Using a
@@ -145,7 +147,10 @@ const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
   ({ inputs, add, feed, output }) => {
     const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
-    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
+    const bottom = add(NAND, "bottom", {
+      a: inputs.resetN,
+      b: top.outputs.out,
+    });
     feed(top.inputs.b, bottom.outputs.out); // the feedback wire
     output("q", top.outputs.out);
     output("qBar", bottom.outputs.out);
@@ -173,7 +178,11 @@ const Adder4 = circuit(
   ({ inputs, add, output }) => {
     let carry: SourcePort = inputs.carryIn;
     for (const i of [0, 1, 2, 3] as const) {
-      const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
+      const fa = add(FullAdder, `fa${i}`, {
+        a: inputs[`a${i}`],
+        b: inputs[`b${i}`],
+        carryIn: carry,
+      });
       output(`s${i}`, fa.outputs.sum);
       carry = fa.outputs.carryOut;
     }
@@ -181,9 +190,9 @@ const Adder4 = circuit(
   },
 );
 
-const sim = simulate(Adder4);
-sim.set({ a0: 1, a1: 1, a2: 0, a3: 0, b0: 0, b1: 0, b2: 1, b3: 0, carryIn: 0 }); // 3 + 4
-sim.run();
+const sim = simulate(Adder4)
+  .set({ a0: 1, a1: 1, a2: 0, a3: 0, b0: 0, b1: 0, b2: 1, b3: 0, carryIn: 0 }) // 3 + 4
+  .run();
 sim.readAll(); // { s0: 1, s1: 1, s2: 1, s3: 0, carryOut: 0 } = 7
 ```
 
@@ -193,25 +202,20 @@ sim.readAll(); // { s0: 1, s1: 1, s2: 1, s3: 0, carryOut: 0 } = 7
 import { simulate, StabilizationError } from "wires";
 import { SRLatch } from "wires/components";
 
-const latch = simulate(SRLatch);
+let latch = simulate(SRLatch);
 
-latch.set({ setN: 1, resetN: 1 });
-latch.run();
+latch = latch.set({ setN: 1, resetN: 1 }).run();
 latch.readAll(); // { q: "X", qBar: "X" }, never initialized, so it stays unknown
 
-latch.set({ setN: 0 }); // set (active low)
-latch.run();
-latch.set({ setN: 1 }); // release
-latch.run();
+latch = latch.set({ setN: 0 }).run(); // set (active low)
+latch = latch.set({ setN: 1 }).run(); // release
 latch.readAll(); // { q: 1, qBar: 0 }, still remembers the 1
 
-latch.set({ setN: 0, resetN: 0 }); // forbidden
-latch.run();
+latch = latch.set({ setN: 0, resetN: 0 }).run(); // forbidden
 latch.readAll(); // { q: 1, qBar: 1 }, not a valid stored state
 
-latch.set({ setN: 1, resetN: 1 }); // release both at once: a race
 try {
-  latch.run();
+  latch.set({ setN: 1, resetN: 1 }).run(); // release both at once: a race
 } catch (error) {
   error instanceof StabilizationError; // true: q and qBar oscillate forever
 }
@@ -219,38 +223,58 @@ try {
 
 ## Simulation
 
+A simulation is a sequence of **states**. `simulate()` returns the first one,
+and every method that moves the simulation forward returns a _new_ state. The
+state you called it on never changes:
+
 ```ts
-const sim = simulate(definition, { maxTicks: 10_000, trace: false }); // defaults shown
+const start = simulate(AND, { maxTicks: 10_000, trace: false }); // defaults shown
+const assigned = start.set({ a: 1, b: 1 }); // a new state; start is untouched
+const settled = assigned.run(); // another new state
+settled.read("out"); // 1
+start.read("out"); // still "X"
 ```
 
-| Method | Behavior |
-|---|---|
-| `set(inputs)` | assign some or all external inputs; changes apply at the current tick |
-| `read(name)` | current value of one output; never advances time |
-| `readAll()` | current values of all outputs |
-| `tick()` | process the current tick and advance time by one |
-| `run()` | tick until nothing is scheduled; returns `{ ticks, tick }`; throws `StabilizationError` after `maxTicks` ticks in one call |
-| `reset()` | back to time 0 with every signal `X`, inputs included; clears the queue and the trace |
-| `inspect()` | `{ tick, signals, pendingEvents, stable }`, where `signals` has the value of every port in the hierarchy |
-| `trace()` | frozen copy of recorded transitions (empty unless `trace: true`) |
+Write it step by step with `let sim = ...; sim = sim.set(...).run();`, or keep
+the states you care about and branch from them. Forgetting to reassign is the
+one mistake to watch for: a bare `sim.set({ a: 1 })` returns a new state and
+leaves `sim` as it was.
 
-Simulators are independent: any number can run on one definition without
-sharing state. Reading never evaluates anything. Time moves only when you call
-`tick()` or `run()`.
+| Member                     | Behavior                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `set(inputs)`              | new state with some or all external inputs assigned; they take effect on the next step          |
+| `step()`                   | new state, one tick later                                                                       |
+| `run()`                    | new state, stepped until stable; throws `StabilizationError` after `maxTicks` steps in one call |
+| `read(name)` / `readAll()` | current output values; never advance time                                                       |
+| `tick`                     | simulation time: the next tick to be processed                                                  |
+| `stable`                   | true when nothing is pending and every gate has had its first evaluation                        |
+| `changes`                  | the wire changes applied by the step that produced this state                                   |
+| `inspect()`                | `{ tick, stable, pendingEvents, signals, wires }` as plain data                                 |
+| `trace()`                  | every wire change up to this state, oldest first (empty unless `trace: true`)                   |
+
+Because states never change:
+
+- **Starting over** means going back to the first state. There's no `reset()`.
+- **History** is just the states you keep:
+  `while (!s.stable) states.push((s = s.step()))`.
+- **Branching** is free. Settle a latch once, then try setting it and
+  resetting it, both starting from that same state.
+- **Errors don't corrupt anything.** If a run throws, the state you called it
+  on is still valid.
 
 ### Timing model
 
 - Every primitive has a delay of one tick. Wires, including a direct
   input → output connection, have no delay.
-- Each tick:
-  1. Apply the changes scheduled for this tick.
-  2. Find the gates reading a changed signal. The first tick evaluates every
+- Each step:
+  1. Apply the pending changes.
+  2. Find the gates reading a changed wire. The first step evaluates every
      gate once.
-  3. Evaluate those gates against one consistent snapshot.
-  4. Schedule outputs that actually changed for the next tick.
+  3. Evaluate those gates against one consistent set of values.
+  4. Outputs that actually changed become pending for the next step.
   5. Advance time.
 - Only changed values create events, and only affected gates are evaluated.
-- Nets and gates are processed in sorted id order, so results never depend on
+- Wires and gates are processed in sorted id order, so results never depend on
   the order components were declared in.
 - `X` is never resolved to 0 or 1. Feedback loops end up in one of three
   states: stable (latch holds), stable but unknown (uninitialized latch), or
@@ -268,16 +292,25 @@ AND.describe().connections;
 // [{ source: "root.inputs.a", destination: "root.nand.inputs.a" }, ...]
 ```
 
-**Netlist.** `elaborate(definition)` returns the flattened graph that the
-simulator executes: primitive `gates` (each with `path` and `ancestors`), `nets`
-(each with its driver, every port aliased to it, and its readers), and
-`portNets`, which maps every port to its net.
+**Wires.** A _wire_ is one driver (a circuit input or a gate output) plus
+every port connected to it. All of them always carry the same value. A wire is
+named after its driver, so the wire that leaves `AND`'s inner NAND is
+`root.nand.outputs.out`, even though it also reaches `root.not.inputs.a` and
+both inputs of `root.not.g`.
 
-**State.** `sim.inspect()`:
+**Netlist.** `elaborate(definition)` returns the flattened graph that the
+simulator executes: primitive `gates` (each with `path` and `ancestors`),
+`wires` (each with its driver, every port on it, and the gates that read it),
+and `portWires`, which maps every port to its wire.
+
+**State.** `state.inspect()` returns plain data. `signals` gives every port's
+value, and `wires` groups ports by wire:
 
 ```ts
 {
   tick: 3,
+  stable: true,
+  pendingEvents: 0,
   signals: {
     "root.inputs.a": 1,
     "root.inputs.b": 1,
@@ -286,24 +319,26 @@ simulator executes: primitive `gates` (each with `path` and `ancestors`), `nets`
     // ...every port in the hierarchy
     "root.not.g.outputs.out": 1,
   },
-  pendingEvents: 0,
-  stable: true,
+  wires: {
+    "root.nand.outputs.out": {
+      value: 0,
+      ports: ["root.nand.outputs.out", "root.not.inputs.a", "root.not.g.inputs.a", "root.not.g.inputs.b"],
+    },
+    // ...one entry per wire
+  },
 }
 ```
 
-**Trace.** With `trace: true`, every transition is recorded in order. Within a
-tick, entries are sorted by signal id. A signal id is the net's driver path.
+**Trace.** With `trace: true`, every wire change is recorded in order. Within a
+tick, entries are sorted by wire id.
 
 ```ts
-const sim = simulate(AND, { trace: true });
-sim.set({ a: 1, b: 1 });
-sim.run();
-sim.trace();
+simulate(AND, { trace: true }).set({ a: 1, b: 1 }).run().trace();
 // [
-//   { tick: 0, signalId: "root.inputs.a", previous: "X", value: 1 },
-//   { tick: 0, signalId: "root.inputs.b", previous: "X", value: 1 },
-//   { tick: 1, signalId: "root.nand.outputs.out", previous: "X", value: 0 },
-//   { tick: 2, signalId: "root.not.g.outputs.out", previous: "X", value: 1 },
+//   { tick: 0, wire: "root.inputs.a", previous: "X", value: 1 },
+//   { tick: 0, wire: "root.inputs.b", previous: "X", value: 1 },
+//   { tick: 1, wire: "root.nand.outputs.out", previous: "X", value: 0 },
+//   { tick: 2, wire: "root.not.g.outputs.out", previous: "X", value: 1 },
 // ]
 ```
 
@@ -311,29 +346,30 @@ sim.trace();
 
 All errors extend `WiresError`.
 
-| Error | When |
-|---|---|
-| `CircuitError` | Invalid names; duplicate ports or instance names; inputs or outputs that don't exist; a part's input used as a source; ports from another circuit; multiple drivers; unconnected child inputs; undriven outputs; components that aren't defined yet; wire loops with no gate. Messages are prefixed with the circuit name and use component paths. |
-| `SimulationError` | Unknown inputs or outputs, invalid signal values, or an evaluator that throws or returns missing, unexpected or invalid outputs. The message names the primitive and its path. |
-| `StabilizationError` | `run()` exceeded `maxTicks`. Exposes `tick`, `ticksExecuted`, `maxTicks`, `recentChanges` and `components` (paths of the gates involved). |
+| Error                | When                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CircuitError`       | Invalid names; duplicate ports or instance names; inputs or outputs that don't exist; a part's input used as a source; ports from another circuit; multiple drivers; unconnected child inputs; undriven outputs; components that aren't defined yet; wire loops with no gate. Messages are prefixed with the circuit name and use component paths. |
+| `SimulationError`    | Unknown inputs or outputs, invalid signal values, or an evaluator that throws or returns missing, unexpected or invalid outputs. The message names the primitive and its path.                                                                                                                                                                     |
+| `StabilizationError` | `run()` exceeded `maxTicks`. Exposes `tick`, `ticksExecuted`, `maxTicks`, `recentChanges` and `components` (paths of the gates involved).                                                                                                                                                                                                          |
 
-After a `SimulationError` thrown in the middle of a tick, call `reset()`.
+States are never modified, so after any error the state you called the method
+on is still valid.
 
 ## Standard library
 
 Everything except `NAND` is built from NAND gates through the public
 `circuit()` API.
 
-| Component | Inputs | Outputs | Notes |
-|---|---|---|---|
-| `NAND` | a, b | out | the only primitive |
-| `NOT` | a | out | |
-| `AND`, `OR`, `NOR`, `XOR`, `XNOR` | a, b | out | |
-| `HalfAdder` | a, b | sum, carry | |
-| `FullAdder` | a, b, carryIn | sum, carryOut | |
-| `Mux` | a, b, select | out | `select = 0` → a, `1` → b |
-| `Demux` | in, select | a, b | the unselected output is 0 |
-| `SRLatch` | setN, resetN | q, qBar | active-low cross-coupled NANDs |
+| Component                         | Inputs        | Outputs       | Notes                          |
+| --------------------------------- | ------------- | ------------- | ------------------------------ |
+| `NAND`                            | a, b          | out           | the only primitive             |
+| `NOT`                             | a             | out           |                                |
+| `AND`, `OR`, `NOR`, `XOR`, `XNOR` | a, b          | out           |                                |
+| `HalfAdder`                       | a, b          | sum, carry    |                                |
+| `FullAdder`                       | a, b, carryIn | sum, carryOut |                                |
+| `Mux`                             | a, b, select  | out           | `select = 0` → a, `1` → b      |
+| `Demux`                           | in, select    | a, b          | the unselected output is 0     |
+| `SRLatch`                         | setN, resetN  | q, qBar       | active-low cross-coupled NANDs |
 
 Because these are NAND networks, they inherit NAND's pessimistic handling of
 `X`. For example, `Mux` gives `X` when `select` is `X`, even if `a === b`.

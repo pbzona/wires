@@ -17,7 +17,7 @@ type Signal = 0 | 1 | "X";
 ```ts
 type SignalTransition = {
   readonly tick: number;
-  readonly signalId: string; // net id (path of the driving port)
+  readonly wire: string; // wire id: the path of the port that drives it
   readonly previous: Signal;
   readonly value: Signal;
 };
@@ -115,9 +115,8 @@ type ConnectionDescription = { readonly source: string; readonly destination: st
 
 | Type | Description |
 | --- | --- |
-| `Simulator<I, O>` | Returned by [`simulate()`](/reference/simulate) |
+| `SimulationState<I, O>` | An immutable moment of a simulation, returned by [`simulate()`](/reference/simulate), `set()`, `step()` and `run()` |
 | `SimulationOptions` | `{ maxTicks?, trace? }` |
-| `RunResult` | `{ ticks, tick }` |
-| `SimulationSnapshot` | `{ tick, signals, pendingEvents, stable }` |
-| `Netlist`, `NetInfo`, `GateInfo`, `Ancestor` | Returned by [`elaborate()`](/reference/elaborate) |
+| `SimulationSnapshot` | `{ tick, stable, pendingEvents, signals, wires }`, returned by `inspect()` |
+| `Netlist`, `WireInfo`, `GateInfo`, `Ancestor` | Returned by [`elaborate()`](/reference/elaborate) |
 | `StabilizationDetails` | The fields of [`StabilizationError`](/reference/errors) |

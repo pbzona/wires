@@ -1,6 +1,6 @@
 ---
 title: "elaborate()"
-description: "Flatten a hierarchical definition into primitive gates and nets."
+description: "Flatten a hierarchical definition into primitive gates and the wires between them."
 icon: "network"
 ---
 
@@ -21,22 +21,22 @@ Returns the flattened, deeply frozen and serializable graph that the simulator r
 </ResponseField>
 
 <ResponseField name="inputs" type="Record<string, string>">
-  External input name to net id.
+  External input name to wire id.
 </ResponseField>
 
 <ResponseField name="outputs" type="Record<string, string>">
-  External output name to net id.
+  External output name to wire id.
 </ResponseField>
 
-<ResponseField name="nets" type="NetInfo[]">
-  Every net, sorted by id.
+<ResponseField name="wires" type="WireInfo[]">
+  Every wire, sorted by id. A wire is one driver plus every port connected to it.
 
-  <Expandable title="NetInfo">
-    <ResponseField name="id" type="string">The net id: the path of its driving port.</ResponseField>
-    <ResponseField name="driver" type="'input' | 'gate'">Whether a root input or a primitive output drives the net.</ResponseField>
+  <Expandable title="WireInfo">
+    <ResponseField name="id" type="string">The wire id: the path of its driving port.</ResponseField>
+    <ResponseField name="driver" type="'input' | 'gate'">Whether a root input or a primitive output drives the wire.</ResponseField>
     <ResponseField name="gate" type="string | null">The path of the driving gate, or `null` for inputs.</ResponseField>
-    <ResponseField name="ports" type="string[]">Every port path carrying this net's value, in hierarchical order.</ResponseField>
-    <ResponseField name="readers" type="string[]">The paths of the gates that read this net.</ResponseField>
+    <ResponseField name="ports" type="string[]">Every port path carrying this wire's value, in hierarchical order.</ResponseField>
+    <ResponseField name="readers" type="string[]">The paths of the gates that read this wire.</ResponseField>
   </Expandable>
 </ResponseField>
 
@@ -47,8 +47,8 @@ Returns the flattened, deeply frozen and serializable graph that the simulator r
     <ResponseField name="path" type="string">Hierarchical path, for example `root.not.g`.</ResponseField>
     <ResponseField name="definition" type="string">The primitive's definition name.</ResponseField>
     <ResponseField name="ancestors" type="{ id: string; definition: string }[]">The composites that contain the gate, outermost first.</ResponseField>
-    <ResponseField name="inputs" type="Record<string, string>">Input port name to net id.</ResponseField>
-    <ResponseField name="outputs" type="Record<string, string>">Output port name to net id.</ResponseField>
+    <ResponseField name="inputs" type="Record<string, string>">Input port name to wire id.</ResponseField>
+    <ResponseField name="outputs" type="Record<string, string>">Output port name to wire id.</ResponseField>
   </Expandable>
 </ResponseField>
 
@@ -56,8 +56,8 @@ Returns the flattened, deeply frozen and serializable graph that the simulator r
   Every port path in the hierarchy, in hierarchical (declaration) order. This is the same key order as `inspect().signals`.
 </ResponseField>
 
-<ResponseField name="portNets" type="Record<string, string>">
-  Port path to net id.
+<ResponseField name="portWires" type="Record<string, string>">
+  Port path to wire id.
 </ResponseField>
 
 ## Example
@@ -67,7 +67,7 @@ import { elaborate } from "wires";
 import { AND } from "wires/components";
 
 const netlist = elaborate(AND);
-const net = netlist.nets.find((n) => n.id === "root.nand.outputs.out");
-console.log(net?.ports);
+const wire = netlist.wires.find((w) => w.id === "root.nand.outputs.out");
+console.log(wire?.ports);
 // ["root.nand.outputs.out", "root.not.inputs.a", "root.not.g.inputs.a", "root.not.g.inputs.b"]
 ```

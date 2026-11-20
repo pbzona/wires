@@ -72,7 +72,7 @@ Recently changed signals:
 Components involved: root.gate, root.inv1.g, root.inv2.g
 ```
 
-The simulator stays usable after a `StabilizationError`. Change the inputs so the circuit can settle, or call `reset()`.
+States are never modified, so after any error the state you called the method on is still valid. Change its inputs so the circuit can settle, or go back to an earlier state.
 
 ## Handling errors
 
@@ -81,11 +81,8 @@ import { CircuitError, SimulationError, StabilizationError, WiresError, simulate
 import { SRLatch } from "wires/components";
 
 try {
-  const latch = simulate(SRLatch, { maxTicks: 20 });
-  latch.set({ setN: 0, resetN: 0 });
-  latch.run();
-  latch.set({ setN: 1, resetN: 1 });
-  latch.run();
+  const forbidden = simulate(SRLatch, { maxTicks: 20 }).set({ setN: 0, resetN: 0 }).run();
+  forbidden.set({ setN: 1, resetN: 1 }).run();
 } catch (error) {
   if (error instanceof StabilizationError) console.log("oscillating:", error.components);
   else if (error instanceof SimulationError) console.log("runtime problem:", error.message);

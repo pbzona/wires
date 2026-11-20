@@ -17,10 +17,11 @@ export function isSignal(value: unknown): value is Signal {
   return value === 0 || value === 1 || value === "X";
 }
 
-/** A recorded change of one signal at one simulation tick. */
+/** A recorded change of one wire's value at one simulation tick. */
 export type SignalTransition = {
   readonly tick: number;
-  readonly signalId: string;
+  /** The wire's id: the path of the port that drives it, e.g. `"root.nand.outputs.out"`. */
+  readonly wire: string;
   readonly previous: Signal;
   readonly value: Signal;
 };

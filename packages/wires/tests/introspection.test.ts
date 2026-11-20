@@ -46,7 +46,7 @@ describe("topology", () => {
         outputs: { out: "root.not.g.outputs.out" },
       },
     ]);
-    expect(netlist.nets.find((n) => n.id === "root.nand.outputs.out")).toEqual({
+    expect(netlist.wires.find((w) => w.id === "root.nand.outputs.out")).toEqual({
       id: "root.nand.outputs.out",
       driver: "gate",
       gate: "root.nand",
@@ -54,18 +54,15 @@ describe("topology", () => {
       readers: ["root.not.g"],
     });
     expect(netlist.outputs).toEqual({ out: "root.not.g.outputs.out" });
-    expect(netlist.portNets["root.outputs.out"]).toBe("root.not.g.outputs.out");
+    expect(netlist.portWires["root.outputs.out"]).toBe("root.not.g.outputs.out");
     expect(JSON.parse(JSON.stringify(netlist))).toEqual(netlist);
-    expect(Object.isFrozen(netlist.nets[0])).toBe(true);
+    expect(Object.isFrozen(netlist.wires[0])).toBe(true);
   });
 });
 
 describe("state inspection", () => {
   it("matches the specification example", () => {
-    const sim = simulate(AND);
-    sim.set({ a: 1, b: 1 });
-    sim.run();
-    const snapshot = sim.inspect();
+    const snapshot = simulate(AND).set({ a: 1, b: 1 }).run().inspect();
     expect(snapshot).toMatchObject({
       tick: 3,
       signals: {
@@ -83,52 +80,49 @@ describe("state inspection", () => {
     expect(snapshot.signals["root.not.inputs.a"]).toBe(0);
   });
 
-  it("shows pending events mid-propagation", () => {
-    const sim = simulate(AND);
-    sim.set({ a: 1, b: 1 });
-    expect(sim.inspect()).toMatchObject({ tick: 0, pendingEvents: 2, stable: false });
-    sim.tick();
-    expect(sim.inspect()).toMatchObject({ tick: 1, pendingEvents: 1, stable: false });
+  it("groups ports into wires", () => {
+    const { wires } = simulate(AND).set({ a: 1, b: 1 }).run().inspect();
+    expect(Object.keys(wires)).toEqual(elaborate(AND).wires.map((w) => w.id));
+    expect(wires["root.nand.outputs.out"]).toEqual({
+      value: 0,
+      ports: ["root.nand.outputs.out", "root.not.inputs.a", "root.not.g.inputs.a", "root.not.g.inputs.b"],
+    });
+    expect(wires["root.not.g.outputs.out"]).toEqual({
+      value: 1,
+      ports: ["root.outputs.out", "root.not.outputs.out", "root.not.g.outputs.out"],
+    });
   });
 
-  it("returns independent snapshots", () => {
-    const sim = simulate(AND);
-    const before = sim.inspect();
-    sim.set({ a: 0 });
-    sim.run();
-    expect(before.signals["root.outputs.out"]).toBe("X");
-    expect(sim.inspect().signals["root.outputs.out"]).toBe(0);
+  it("shows pending events mid-propagation", () => {
+    const assigned = simulate(AND).set({ a: 1, b: 1 });
+    expect(assigned.inspect()).toMatchObject({ tick: 0, pendingEvents: 2, stable: false });
+    expect(assigned.step().inspect()).toMatchObject({ tick: 1, pendingEvents: 1, stable: false });
+  });
+
+  it("returns snapshots as plain, serializable data", () => {
+    const snapshot = simulate(AND).set({ a: 0 }).run().inspect();
+    expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);
+    expect(snapshot.signals["root.outputs.out"]).toBe(0);
   });
 });
 
 describe("tracing", () => {
   it("records ordered transitions with timestamps", () => {
-    const sim = simulate(SRLatch, { trace: true });
-    sim.set({ setN: 0, resetN: 1 });
-    sim.run();
-    sim.set({ setN: 1 });
-    sim.run();
-    const trace = sim.trace();
+    const trace = simulate(SRLatch, { trace: true }).set({ setN: 0, resetN: 1 }).run().set({ setN: 1 }).run().trace();
     expect(trace).toEqual([
-      { tick: 0, signalId: "root.inputs.resetN", previous: "X", value: 1 },
-      { tick: 0, signalId: "root.inputs.setN", previous: "X", value: 0 },
-      { tick: 1, signalId: "root.top.outputs.out", previous: "X", value: 1 },
-      { tick: 2, signalId: "root.bottom.outputs.out", previous: "X", value: 0 },
-      { tick: 3, signalId: "root.inputs.setN", previous: 0, value: 1 },
+      { tick: 0, wire: "root.inputs.resetN", previous: "X", value: 1 },
+      { tick: 0, wire: "root.inputs.setN", previous: "X", value: 0 },
+      { tick: 1, wire: "root.top.outputs.out", previous: "X", value: 1 },
+      { tick: 2, wire: "root.bottom.outputs.out", previous: "X", value: 0 },
+      { tick: 3, wire: "root.inputs.setN", previous: 0, value: 1 },
     ]);
     const ticks = trace.map((t) => t.tick);
     expect(ticks).toEqual([...ticks].sort((a, b) => a - b));
   });
 
-  it("is deterministic across simulators", () => {
-    const record = () => {
-      const sim = simulate(HalfAdder, { trace: true });
-      sim.set({ a: 1, b: 0 });
-      sim.run();
-      sim.set({ a: 1, b: 1 });
-      sim.run();
-      return sim.trace();
-    };
+  it("is deterministic across simulations", () => {
+    const record = () =>
+      simulate(HalfAdder, { trace: true }).set({ a: 1, b: 0 }).run().set({ a: 1, b: 1 }).run().trace();
     expect(record()).toEqual(record());
   });
 });
