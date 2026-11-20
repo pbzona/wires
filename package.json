@@ -13,7 +13,14 @@
     "docs": "turbo run dev --filter=docs"
   },
   "engines": {
-    "node": ">=22.18 <25"
+    "node": "^24 || >=26"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24 || >=26",
+      "onFail": "error"
+    }
   },
   "devDependencies": {
     "turbo": "^2.11.13"

@@ -18,7 +18,8 @@ understanding, not generating optimized circuits. See
 
 ## Getting started
 
-Requires Node.js ≥ 22.18.
+Requires Node.js 24, or 26 and later (Node 25 and anything older is end-of-life
+and rejected), plus pnpm 11. `pnpm install` refuses to run on other versions.
 
 ```sh
 pnpm install
