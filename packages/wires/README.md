@@ -59,10 +59,9 @@ There are two entry points:
 | `@pbzona/wires`            | the engine: `gate`, `circuit`, `simulate`, `elaborate`, errors, types                                                       |
 | `@pbzona/wires/components` | the standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
 
-Requires Node.js 24, or 26 and later, Bun, or any modern browser or bundler.
-End-of-life Node.js releases are refused on purpose: importing the package on
-Node 22 or Node 25, for example, throws an error. The package is ESM only and
-has no runtime dependencies.
+Requires Node.js 24, or 26 and later (no end-of-life releases), Bun, or any
+modern browser or bundler. The package is ESM only and has no runtime
+dependencies.
 
 ## Signals
 

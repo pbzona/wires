@@ -22,9 +22,7 @@
     "url": "https://github.com/pbzona/wires/issues"
   },
   "type": "module",
-  "sideEffects": [
-    "./dist/core/runtime.js"
-  ],
+  "sideEffects": false,
   "files": [
     "dist",
     "src"

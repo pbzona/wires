@@ -1,6 +1,3 @@
-// Refuse to load on end-of-life Node.js releases (see core/runtime.ts).
-import "./core/runtime.js";
-
 // Core structural model
 export { type Signal, type SignalTransition, X, SIGNALS, isSignal } from "./core/signal.js";
 export type {

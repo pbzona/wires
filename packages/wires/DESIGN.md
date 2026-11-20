@@ -79,11 +79,8 @@ the same inputs. Copying one array per step is negligible at learning scale.
 
 - **Supported runtimes are a policy, not a technical floor.** The library only
   uses ES2022 features, but it supports only maintained Node.js releases:
-  24, or 26 and later. `engines` and `devEngines` say so, and since `engines`
-  is only a warning for consumers, `src/core/runtime.ts` throws on import under
-  any other Node.js version. Bun and Deno report a compatible Node.js version,
-  and browsers aren't checked. The module is listed in `sideEffects` so
-  bundlers keep it.
+  24, or 26 and later. `engines` declares this for consumers, and the root
+  `devEngines` enforces it when working in the repo.
 - **Package name** is `@pbzona/wires` on npm (the project is called `wires`).
   The component library ships as the separate subpath export
   `@pbzona/wires/components`, keeping it apart from the engine.
