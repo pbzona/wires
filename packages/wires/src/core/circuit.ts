@@ -48,15 +48,13 @@ export type CircuitBuilder<I extends string, O extends string> = {
 
 const RESERVED_INSTANCE_NAMES = new Set(["inputs", "outputs"]);
 
-/** Definitions whose builder is currently running, outermost first. */
-const buildStack: ComponentDefinition[] = [];
-
 /**
  * Defines a composite circuit built from other components.
  *
- * The builder callback runs once, lazily, the first time the circuit is used
- * (added to another circuit, described, elaborated or simulated). Its result is
- * validated and memoized.
+ * The builder callback runs immediately, exactly once, and the result is
+ * validated before `circuit()` returns, so mistakes are reported where the
+ * circuit is defined. A circuit can only contain definitions that already
+ * exist, which also means a circuit can never contain itself.
  *
  * ```ts
  * const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
@@ -80,9 +78,6 @@ export function circuit<const I extends readonly string[], const O extends reado
     throw new CircuitError("circuit() expects a builder function", spec.name);
   }
 
-  let structure: CircuitStructure | undefined;
-  let building = false;
-
   const definition: ComponentDefinition<I[number], O[number]> = Object.freeze({
     kind: "composite" as const,
     name: spec.name,
@@ -91,28 +86,8 @@ export function circuit<const I extends readonly string[], const O extends reado
     describe: () => describeAt(definition, "root", "root", null),
   });
 
-  const getStructure = (): CircuitStructure => {
-    if (structure !== undefined) return structure;
-    if (building) {
-      const start = buildStack.indexOf(definition);
-      const chain = [...buildStack.slice(start), definition].map((d) => d.name).join(" -> ");
-      throw new CircuitError(
-        `Recursive component definition cannot be elaborated into a finite circuit: ${chain}`,
-        spec.name,
-      );
-    }
-    building = true;
-    buildStack.push(definition);
-    try {
-      structure = runBuilder(definition, build as (builder: CircuitBuilder<string, string>) => void);
-      return structure;
-    } finally {
-      building = false;
-      buildStack.pop();
-    }
-  };
-
-  registerDefinition(definition, { kind: "composite", structure: getStructure });
+  const structure = runBuilder(definition, build as (builder: CircuitBuilder<string, string>) => void);
+  registerDefinition(definition, { kind: "composite", structure });
   return definition;
 }
 
@@ -189,7 +164,10 @@ function runBuilder(
 
   const add = (child: ComponentDefinition, name?: string): ComponentInstance => {
     if (sealed) fail("add() called after the circuit builder finished");
-    const childData = requireInternals(child, "add()");
+    if (child === undefined) {
+      fail("add() received undefined; a circuit can only contain components defined before it");
+    }
+    requireInternals(child, "add()");
     if (name === undefined) {
       let n = autoNameCounters.get(child.name) ?? 0;
       while (instancesByName.has(`${child.name}#${n}`)) n++;
@@ -200,9 +178,6 @@ function runBuilder(
       if (RESERVED_INSTANCE_NAMES.has(name)) fail(`"${name}" is a reserved name and cannot name a component instance`);
       if (instancesByName.has(name)) fail(`Duplicate component instance name "${name}"`);
     }
-    // Build composite children now: surfaces their errors early and detects recursion.
-    if (childData.kind === "composite") childData.structure();
-
     const handle = { kind: "instance", name, definition: child } as {
       kind: "instance";
       name: string;

@@ -10,13 +10,13 @@ deliberately deviates from the original specification.
 Internal data (the evaluator, or the built instance/connection lists) lives in a
 module-private `WeakMap`, so the public objects stay small and immutable.
 
-**Lazy, memoized circuit construction.** A composite's builder callback runs
-once, on first use: when the circuit is added to another circuit, described,
-elaborated or simulated. Running it lazily is what makes recursion detectable
-(`const X = circuit(..., ({ add }) => add(X))` would otherwise be a TDZ
-`ReferenceError`). Adding a composite forces it to build, so a definition that
-is still building when it is added again (X → Y → X) is reported as a recursive
-definition with the full chain.
+**Eager circuit construction.** A composite's builder callback runs inside
+`circuit()`, and its result is validated before `circuit()` returns, so errors
+point at the circuit being defined. Because a circuit can only `add` definitions
+that already exist, recursive definitions can't be expressed at all. That
+covers the spec's "recursive definitions" requirement structurally rather than
+with a runtime check. Passing a not-yet-defined (`undefined`) component to
+`add` gets a dedicated error message.
 
 **Ports.** Port handles are plain frozen objects:
 `{ kind: "port", id: "inputs.a", name, direction, role, owner }`.

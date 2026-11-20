@@ -7,7 +7,7 @@ export class WiresError extends Error {
 
 /**
  * A structural problem with a component definition: bad names, invalid wiring,
- * missing connections, recursion, or a netlist that cannot be elaborated.
+ * missing connections, or a netlist that cannot be elaborated.
  */
 export class CircuitError extends WiresError {
   override name = "CircuitError";

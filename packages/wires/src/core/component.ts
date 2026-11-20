@@ -136,8 +136,8 @@ export type PrimitiveInternals = {
 
 export type CompositeInternals = {
   readonly kind: "composite";
-  /** Runs the builder on first call and returns the memoized structure. */
-  readonly structure: () => CircuitStructure;
+  /** The validated result of running the circuit's builder. */
+  readonly structure: CircuitStructure;
 };
 
 const internals = new WeakMap<object, PrimitiveInternals | CompositeInternals>();
@@ -223,7 +223,7 @@ export function describeAt(
   if (data.kind === "primitive") {
     return { id, name, parent, definition: definition.name, kind: "primitive", ports, components: [], connections: [] };
   }
-  const structure = data.structure();
+  const structure = data.structure;
   const resolve = (ref: PortRecord) =>
     portPath(ref.instance === null ? id : `${id}.${ref.instance}`, ref.direction, ref.name);
   return {

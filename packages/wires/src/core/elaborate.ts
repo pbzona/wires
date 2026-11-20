@@ -128,7 +128,7 @@ function build(definition: ComponentDefinition): CompiledCircuit {
       for (const name of def.outputs) gateOutputs.set(portPath(path, "output", name), path);
       return;
     }
-    const structure = data.structure();
+    const structure = data.structure;
     const inner = Object.freeze([...ancestors, Object.freeze({ id: path, definition: def.name })]);
     for (const child of structure.instances) walk(child.definition, `${path}.${child.name}`, inner);
     for (const { source, destination } of structure.connections) {

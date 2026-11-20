@@ -68,10 +68,14 @@ circuit({ name: "Rules", inputs: ["a"], outputs: ["out", "copy"] }, ({ inputs, o
   connect(inputs.a, g.inputs.b); // ✓ fan-out from one source
   connect(g.outputs.out, outputs.out); // ✓ child output to circuit output
   connect(inputs.a, outputs.copy); // ✓ direct input-to-output wire (no delay)
-
-  // @ts-expect-error: a child input is not a source
-  connect(g.inputs.a, outputs.out);
 });
+```
+
+Wiring the wrong way round is a compile-time error, and `circuit()` rejects it at runtime too:
+
+```ts
+connect(g.inputs.a, outputs.out); // ✗ a child input is not a source
+// Rules: g.inputs.a cannot be a connection source: a component's inputs can only be driven
 ```
 
 The builder checks the following, and reports problems as a `CircuitError` prefixed with the circuit name:
@@ -95,15 +99,11 @@ HalfBroken: Invalid circuit:
 
 Unused circuit inputs and unconnected child outputs are fine.
 
-## Lazy, memoized construction
+## When the builder runs
 
-The builder callback does not run when you call `circuit()`. It runs **once**, the first time the circuit is used: when it is added to another circuit, described, elaborated or simulated. The result is validated and cached.
+The builder callback runs **immediately**, inside `circuit()`, and the result is checked before `circuit()` returns. A wiring mistake is reported on the line where you define the circuit, not later when you first simulate it.
 
-This is what makes recursion detectable. A definition that contains itself, directly or through other definitions, can't be elaborated into a finite circuit:
-
-```text
-A: Recursive component definition cannot be elaborated into a finite circuit: A -> B -> A
-```
+It also means a circuit can only contain components that already exist. A circuit can never contain itself, so every circuit elaborates into a finite set of gates.
 
 Builders must be synchronous. Returning a promise throws a `CircuitError`. The builder context can't be used after the callback returns.
 

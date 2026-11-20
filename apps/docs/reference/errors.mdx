@@ -27,7 +27,7 @@ Thrown for:
 - a connection in the wrong direction, a port that doesn't exist, or a port of a foreign instance
 - multiple drivers for one sink
 - unconnected child inputs and undriven outputs, all reported together
-- recursive definitions (`A -> B -> A`)
+- adding a component that isn't defined yet (`add()` received `undefined`)
 - wire loops with no driving gate, found during elaboration
 - builders that are asynchronous, or used after they finish
 

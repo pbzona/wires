@@ -138,8 +138,10 @@ are its children's inputs and its own outputs. Wiring in the wrong direction is
 a compile-time error, and is rejected again at runtime. Feedback loops are
 allowed.
 
-The builder runs once, lazily, the first time a circuit is used (added to
-another circuit, described or simulated). It is then validated and memoized.
+The builder runs immediately, inside `circuit()`, and the result is validated
+before `circuit()` returns, so mistakes are reported where you made them. A
+circuit can only contain components defined before it, so it can never
+contain itself.
 
 ## A four-bit adder
 
@@ -299,7 +301,7 @@ All errors extend `WiresError`.
 
 | Error | When |
 |---|---|
-| `CircuitError` | Invalid names; duplicate ports or instance names; wrong-direction, foreign or nonexistent ports; multiple drivers; unconnected child inputs; undriven outputs; recursive definitions (`A -> B -> A`); wire loops with no gate. Messages are prefixed with the circuit name and use component paths. |
+| `CircuitError` | Invalid names; duplicate ports or instance names; wrong-direction, foreign or nonexistent ports; multiple drivers; unconnected child inputs; undriven outputs; components that aren't defined yet; wire loops with no gate. Messages are prefixed with the circuit name and use component paths. |
 | `SimulationError` | Unknown inputs or outputs, invalid signal values, or an evaluator that throws or returns missing, unexpected or invalid outputs. The message names the primitive and its path. |
 | `StabilizationError` | `run()` exceeded `maxTicks`. Exposes `tick`, `ticksExecuted`, `maxTicks`, `recentChanges` and `components` (paths of the gates involved). |
 

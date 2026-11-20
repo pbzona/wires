@@ -92,13 +92,13 @@ describe("definitions", () => {
     expect(make().describe().components.map((c) => c.id)).toEqual(["root.NOT#0", "root.NOT#1", "root.n"]);
   });
 
-  it("builds lazily and only once", () => {
+  it("builds immediately and only once", () => {
     let runs = 0;
     const C = circuit({ name: "C", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, connect }) => {
       runs++;
       connect(inputs.a, outputs.out);
     });
-    expect(runs).toBe(0);
+    expect(runs).toBe(1);
     C.describe();
     C.describe();
     expect(runs).toBe(1);
@@ -278,36 +278,28 @@ describe("validation", () => {
     expectCircuitError(() => saved!.add(BUF), /after the circuit builder finished/);
   });
 
-  it("rejects recursive definitions", () => {
-    const Self: ComponentDefinition<"a", "out"> = circuit(
-      { name: "Self", inputs: ["a"], outputs: ["out"] },
-      ({ inputs, outputs, add, connect }) => {
-        const inner = add(Self, "inner");
-        connect(inputs.a, inner.inputs.a);
-        connect(inner.outputs.out, outputs.out);
-      },
+  it("reports errors where the circuit is defined", () => {
+    expectCircuitError(
+      () => circuit({ name: "Early", inputs: [], outputs: ["out"] }, () => {}),
+      /^Early: Invalid circuit:\n {2}- output outputs\.out is not driven/,
     );
-    expectCircuitError(() => Self.describe(), /Recursive component definition .*: Self -> Self/);
+  });
 
-    const A: ComponentDefinition<"a", "out"> = circuit(
-      { name: "A", inputs: ["a"], outputs: ["out"] },
-      ({ inputs, outputs, add, connect }) => {
-        const b = add(B, "b");
-        connect(inputs.a, b.inputs.a);
-        connect(b.outputs.out, outputs.out);
-      },
+  it("cannot contain components that are defined later (so no recursion)", () => {
+    // `var` makes the later definition visible as `undefined` instead of throwing a ReferenceError.
+    // eslint-disable-next-line no-var
+    var Later: ComponentDefinition<"a", "out"> | undefined;
+    expectCircuitError(
+      () =>
+        circuit({ name: "Before", inputs: ["a"], outputs: ["out"] }, ({ inputs, outputs, add, connect }) => {
+          const later = add(Later!, "later");
+          connect(inputs.a, later.inputs.a);
+          connect(later.outputs.out, outputs.out);
+        }),
+      /^Before: add\(\) received undefined; a circuit can only contain components defined before it/,
     );
-    const B: ComponentDefinition<"a", "out"> = circuit(
-      { name: "B", inputs: ["a"], outputs: ["out"] },
-      ({ inputs, outputs, add, connect }) => {
-        const a = add(A, "a");
-        connect(inputs.a, a.inputs.a);
-        connect(a.outputs.out, outputs.out);
-      },
-    );
-    expectCircuitError(() => A.describe(), /A -> B -> A/);
-    // A failed build does not poison later attempts with a different error.
-    expectCircuitError(() => B.describe(), /B -> A -> B/);
+    Later = BUF;
+    expect(Later).toBe(BUF);
   });
 
   it("rejects asynchronous builders", () => {
