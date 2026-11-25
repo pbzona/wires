@@ -39,6 +39,21 @@ importers:
         specifier: ^5.1.1
         version: 5.1.1(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2))
 
+  packages/wires-editor:
+    devDependencies:
+      '@pbzona/wires':
+        specifier: workspace:*
+        version: link:../wires
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.1.1
+        version: 5.1.1(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2))
+
 packages:
 
   '@emnapi/core@2.0.0-beta.2':

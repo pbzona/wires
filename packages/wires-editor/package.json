@@ -1,0 +1,37 @@
+{
+  "name": "@pbzona/wires-editor",
+  "version": "0.1.0",
+  "description": "A framework-neutral circuit workbench for @pbzona/wires.",
+  "keywords": ["digital-logic", "circuit-editor", "circuit-simulator", "education", "canvas"],
+  "license": "MIT",
+  "author": "Phil Zona",
+  "homepage": "https://github.com/pbzona/wires/tree/main/packages/wires-editor#readme",
+  "bugs": { "url": "https://github.com/pbzona/wires/issues" },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": { "type": "git", "url": "git+https://github.com/pbzona/wires.git", "directory": "packages/wires-editor" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./style.css": "./src/style.css"
+  },
+  "files": ["dist", "src"],
+  "sideEffects": ["**/*.css"],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepack": "pnpm build",
+    "prepublishOnly": "pnpm typecheck && pnpm test"
+  },
+  "peerDependencies": { "@pbzona/wires": "^0.1.0" },
+  "devDependencies": {
+    "@pbzona/wires": "workspace:*",
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  },
+  "engines": { "node": "^24 || >=26" },
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" }
+}
