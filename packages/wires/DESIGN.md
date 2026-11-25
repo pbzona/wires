@@ -65,7 +65,7 @@ Each state holds:
 - `pending`: a map of wire changes to apply on the next step. With unit gate
   delays, every pending change belongs to the next step, so no tick-keyed queue
   is needed. Variable delays would bring one back.
-- `firstStep`: true until the first step, which evaluates every gate once.
+- `firstStep`: true when the gates still need their initial evaluation. A circuit with no gates starts stable.
 - `changes`: the transitions applied by the step that produced the state.
 - `trace`: when tracing, a linked list of per-step transition batches shared
   between states, so branches share their common history without copying it.

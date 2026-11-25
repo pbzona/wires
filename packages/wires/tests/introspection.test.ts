@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AND, HalfAdder, SRLatch } from "@pbzona/wires/components";
-import { elaborate, simulate } from "@pbzona/wires";
+import { circuit, elaborate, simulate } from "@pbzona/wires";
 
 describe("topology", () => {
   it("describes nested standard components", () => {
@@ -91,6 +91,19 @@ describe("state inspection", () => {
       value: 1,
       ports: ["root.outputs.out", "root.not.outputs.out", "root.not.g.outputs.out"],
     });
+  });
+
+  it("starts stable if there are no gates to evaluate", () => {
+    const wire = circuit({ name: "Wire", inputs: ["a"], outputs: ["out"] }, ({ inputs, output }) => {
+      output("out", inputs.a);
+    });
+    const initial = simulate(wire);
+    expect(initial.run()).toBe(initial);
+    expect(initial.inspect()).toMatchObject({ tick: 0, pendingEvents: 0, stable: true });
+    expect(initial.read("out")).toBe("X");
+    const assigned = initial.set({ a: 1 }).run();
+    expect(assigned.tick).toBe(1);
+    expect(assigned.read("out")).toBe(1);
   });
 
   it("shows pending events mid-propagation", () => {

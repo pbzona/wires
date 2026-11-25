@@ -69,7 +69,7 @@ type StateData = {
   readonly values: readonly Signal[];
   /** Wire changes to apply on the next step, by wire index. */
   readonly pending: ReadonlyMap<number, Signal>;
-  /** True until the first step, which evaluates every gate once. */
+  /** True when there are gates waiting for their first evaluation. */
   readonly firstStep: boolean;
   readonly changes: readonly SignalTransition[];
   readonly trace: TraceNode | null;
@@ -99,7 +99,7 @@ export function simulate<I extends string, O extends string>(
     tick: 0,
     values: Object.freeze(circuit.wireIds.map((): Signal => "X")),
     pending: new Map(),
-    firstStep: true,
+    firstStep: circuit.gates.length > 0,
     changes: Object.freeze([]),
     trace: null,
   }) as SimulationState<string, string> as SimulationState<I, O>;
@@ -147,7 +147,8 @@ class State implements SimulationState {
     for (const [wire, value] of updates) {
       const upcoming = pending.has(wire) ? pending.get(wire) : d.values[wire];
       if (upcoming === value) continue; // already heading to this value
-      pending.set(wire, value);
+      if (value === d.values[wire]) pending.delete(wire); // cancel the assignment before it takes effect
+      else pending.set(wire, value);
       changed = true;
     }
     if (!changed) return this;

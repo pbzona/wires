@@ -53,6 +53,25 @@ describe("simulation states", () => {
     expect(settled.set({})).toBe(settled);
   });
 
+  it("cancels an input assignment when it is set back before the next step", () => {
+    const settled = simulate(Wire, { trace: true }).set({ a: 0 }).run();
+    const assigned = settled.set({ a: 1 });
+    const canceled = assigned.set({ a: 0 });
+    expect(canceled.inspect()).toMatchObject({ stable: true, pendingEvents: 0 });
+    expect(canceled.run().tick).toBe(settled.tick);
+    expect(canceled.trace()).toEqual(settled.trace());
+    expect(assigned.run().read("out")).toBe(1); // the original branch still has its assignment
+  });
+
+  it("canceling an input leaves gate events and the first evaluation intact", () => {
+    const initial = simulate(NOT).set({ a: 0 }).set({ a: "X" });
+    expect(initial.inspect()).toMatchObject({ stable: false, pendingEvents: 0 });
+    const propagating = initial.set({ a: 0 }).step();
+    const canceled = propagating.set({ a: 1 }).set({ a: 0 });
+    expect(canceled.inspect()).toMatchObject({ stable: false, pendingEvents: 1 });
+    expect(canceled.run().read("out")).toBe(1);
+  });
+
   it("does not evaluate on read", () => {
     const sim = simulate(NOT).set({ a: 0 });
     expect(sim.read("out")).toBe("X");

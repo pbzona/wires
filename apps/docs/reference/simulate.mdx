@@ -36,11 +36,11 @@ A frozen object describing one moment of the simulation. Methods that move the s
 </ResponseField>
 
 <ResponseField name="stable" type="boolean">
-  True when no wire changes are pending and every gate has had its first evaluation.
+  True when no wire changes are pending and every gate has had its first evaluation. A circuit with no gates starts stable at tick 0.
 </ResponseField>
 
 <ResponseField name="changes" type="readonly SignalTransition[]">
-  The wire changes applied by the step that produced this state, in wire order. Empty for the first state and for states returned by `set()`.
+  The wire changes applied by the step that produced this state, in wire order. Empty for the first state and for new states created by `set()`. A no-op `set()` returns the existing state, including its `changes`.
 </ResponseField>
 
 ### Moving forward

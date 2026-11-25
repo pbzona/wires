@@ -49,7 +49,7 @@ sim = sim.set({ a: 1 }); // b keeps its previous value
 ```
 
 - Inputs you've never set stay `"X"`.
-- Setting inputs to the values they already have returns the same state.
+- Setting an input to the value already pending for it leaves the state unchanged. If you set it back to its current wire value before stepping, you cancel the pending change without advancing time.
 - Unknown input names and invalid values (`true`, `2`, `"x"`) throw a `SimulationError`, and nothing is applied.
 
 ## Moving through time
