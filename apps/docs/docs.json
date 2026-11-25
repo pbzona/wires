@@ -21,7 +21,10 @@
     "library": "lucide"
   },
   "navbar": {
-    "links": [{ "label": "GitHub", "href": "https://github.com/pbzona/wires" }]
+    "links": [
+      { "label": "Live demo", "href": "https://wires-demo.phil.bingo" },
+      { "label": "GitHub", "href": "https://github.com/pbzona/wires" }
+    ]
   },
   "navigation": {
     "tabs": [
