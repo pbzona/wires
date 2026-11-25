@@ -40,7 +40,35 @@
 .we-bench, .we-wiring, .we-source { margin-top: 14px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 7px; }
 .we-bench-head { flex-wrap: wrap; }.we-stamp { padding: 4px 8px; background: #edf0e9; border-radius: 4px; text-transform: none; letter-spacing: .03em; font-size: 11px; }
 .we-io { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }.we-pins { display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 5px; }
-.we-pin { display: inline-flex; align-items: center; gap: 5px; font: 13px ui-monospace, monospace; }.we-pin select { padding: 2px 4px; font-size: 12px; }.we-pin output { display: inline-block; min-width: 24px; text-align: center; padding: 2px; border: 1px solid var(--line); border-radius: 4px; }.we-pin [data-value="1"] { color: var(--live); background: var(--mint); }.we-pin [data-value="X"] { color: var(--unknown); background: #fcf1d7; }
+.we-pin { display: inline-flex; align-items: center; gap: 6px; font: 13px ui-monospace, monospace; }
+.we-pin output { display: inline-block; min-width: 24px; text-align: center; padding: 2px; border: 1px solid var(--line); border-radius: 4px; }
+.we-pin [data-value="1"] { color: var(--live); background-color: var(--mint); }
+.we-pin [data-value="X"] { color: var(--unknown); background-color: #fcf1d7; }
+.wires-editor .we-pin select {
+  appearance: none; min-width: 54px; min-height: 30px; padding: 3px 25px 3px 10px;
+  font: 600 13px/1.4 ui-monospace, monospace; font-variant-numeric: tabular-nums;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%2359665e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
+}
+.we-pin select:enabled:hover, .we-pin select:open { border-color: var(--live); }
+.we-pin select:disabled { opacity: .5; cursor: not-allowed; }
+@supports (appearance: base-select) and selector(::picker(select)) {
+  .wires-editor .we-pin select, .we-pin select::picker(select) { appearance: base-select; }
+  .we-pin select::picker-icon { display: none; }
+  .we-pin select::picker(select) {
+    margin-block-start: 3px; padding: 3px; border: 1px solid #b8c1b7; border-radius: 6px;
+    background: var(--paper); color: var(--ink); box-shadow: 0 4px 12px #17251e20;
+  }
+  .we-pin option { min-height: 28px; padding: 3px 7px; border-radius: 3px; font: 600 13px/1.4 ui-monospace, monospace; cursor: pointer; }
+  .we-pin option:checked { color: var(--live); background: var(--mint); }
+  .we-pin option[value="X"]:checked { color: var(--unknown); background: #fcf1d7; }
+  .we-pin option:is(:hover, :focus-visible) { outline: 1px solid var(--live); outline-offset: -1px; }
+  .we-pin option::checkmark { order: 1; margin-left: auto; }
+}
+@media (forced-colors: active) {
+  .wires-editor .we-pin select { appearance: auto; background-image: none; }
+}
+
 .wires-editor .we-problem { color: #834900; background: #fff4d8; padding: 8px 10px; margin-top: 10px; white-space: pre-line; border-radius: 4px; }
 .we-wiring summary { cursor: pointer; font-weight: 600; }.we-wiring[open] summary { margin-bottom: 12px; }.we-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }.we-control label { font: 12px ui-monospace, monospace; }.we-control select { font-size: 12px; }
 .we-source pre { font: 12px/1.6 ui-monospace, monospace; overflow: auto; padding: 12px; background: #eff2eb; }.we-empty { color: var(--muted); font-size: 12px; }
