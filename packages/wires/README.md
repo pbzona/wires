@@ -379,7 +379,7 @@ Because these are NAND networks, they inherit NAND's pessimistic handling of
 
 ## Examples
 
-From `packages/wires`:
+From `packages/wires` in a [source checkout](https://github.com/pbzona/wires#readme) (the npm package does not include the demo scripts):
 
 ```sh
 pnpm build

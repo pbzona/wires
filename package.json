@@ -10,7 +10,8 @@
     "lint": "turbo run lint",
     "check": "turbo run typecheck test build lint",
     "dev": "turbo run dev",
-    "docs": "turbo run dev --filter=docs"
+    "docs": "turbo run dev --filter=docs",
+    "workbench": "turbo run build --filter=@pbzona/wires-editor && node scripts/smoke-starter.mjs --dev"
   },
   "engines": {
     "node": "^24 || >=26"

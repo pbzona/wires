@@ -46,17 +46,23 @@ To run one package's tasks, filter by name:
 
 ## Publishing
 
-`@pbzona/wires` is published to the public npm registry. Its `publishConfig`
-pins `registry.npmjs.org` and public access, so a publish never goes to a
-mirror or proxy configured as your default registry.
+Only `@pbzona/wires`, `@pbzona/wires-editor`, and `@pbzona/create-wires` are publishable. The workspace root, docs, and generated app are private. All three public manifests target `https://registry.npmjs.org/` with public access.
 
-1. Bump `version` in `packages/wires/package.json`.
-2. Run `pnpm check` from the root.
-3. Log in to npm once: `npm login --registry https://registry.npmjs.org/`.
-4. From `packages/wires`, preview the tarball with `pnpm publish --dry-run`,
-   then publish with `pnpm publish`.
+**Prepare from the repository root.** Check that the versions you intend to release are unused on npm. For a later release, also check the editor's `@pbzona/wires` peer range and both dependency ranges in `packages/create-wires/template/package.json`. Use pnpm to pack: it replaces `workspace:` references in the tarballs with real versions. Both libraries clean and rebuild `dist/` during packing.
 
-`prepublishOnly` runs the type check and tests, and `prepack` does a clean
-build, so the tarball always contains a fresh `dist/`. The package ships
-`dist/` (JavaScript, declarations and source maps), plus `src/` so
-"go to definition" lands in readable TypeScript, `README.md` and `LICENSE`.
+```sh
+pnpm install --frozen-lockfile
+pnpm check
+pnpm -r --filter '@pbzona/*' pack --pack-destination "$PWD/dist/npm"
+node scripts/smoke-starter.mjs --tarballs dist/npm
+```
+
+The smoke test scaffolds, installs, type-checks and builds a Vite app from those exact tarballs without publishing. Preview npm's publish operation for each archive (example for `0.1.0`):
+
+```sh
+npm publish ./dist/npm/pbzona-wires-0.1.0.tgz --dry-run --access public --registry=https://registry.npmjs.org/
+npm publish ./dist/npm/pbzona-wires-editor-0.1.0.tgz --dry-run --access public --registry=https://registry.npmjs.org/
+npm publish ./dist/npm/pbzona-create-wires-0.1.0.tgz --dry-run --access public --registry=https://registry.npmjs.org/
+```
+
+**Release only after review.** Ensure the tested source is committed, sign in with a publish-capable `@pbzona` account, and run the same three commands **without `--dry-run`**, in the order shown. Publish the initializer last so `npm create @pbzona/wires` never scaffolds an app that references unpublished libraries. npm will not let you reuse a published name/version. No credentials belong in this repository.
