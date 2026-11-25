@@ -1,0 +1,37 @@
+---
+title: "Circuit workbench"
+description: "Wire a chip on a canvas, step it, and save it as TypeScript."
+icon: "microchip"
+---
+
+The workbench is a browser app that uses the same [simulator](/concepts/simulation-model) as your TypeScript circuits. To try it from this checkout, run `pnpm install` and `pnpm workbench` from the repository root. Open the local URL it prints. The command prints the location of your generated project too; chip files stay there after the server stops.
+
+## Watch a half adder
+
+The opening sheet has inputs `a` and `b`. They feed an XOR for `sum` and an AND for `carry`. Set both inputs to `1`. Press **Step** to advance one tick, then **Run to stable**: the outputs settle to `sum = 0`, `carry = 1`. The input controls queue a change; the labels on the canvas show what the signals actually are at that tick. `X` means unknown. Double-click the XOR to see the gates inside it; use the breadcrumb to get back.
+
+## Build a chip
+
+1. Select **New circuit**. Call it `MyNot`, give it one input `a` and one output `out`.
+2. Choose `NAND` from the library. Click the circuit's `a` pin, then the NAND's `a` pin. Repeat for the NAND's `b` pin. Connect the NAND output to the circuit output. You can also pick each destination's driver under **Wiring and parts**.
+3. Run the circuit with `a = 0`. Check that `out` settles to `1`. Open **Source** to see the equivalent `circuit()` definition.
+4. Select **Save as chip**. The local dev server creates `chips/MyNot.ts`; `MyNot` now appears under **Mine**. If the file exists, choose a new name. A static build offers **Copy TypeScript** instead of writing to disk.
+
+## Add a chip by hand
+
+The personal library lives in `chips/`, not `src/`. For example, save the following as `chips/BothLow.ts`:
+
+```ts
+import { circuit } from "@pbzona/wires";
+import { NOR } from "@pbzona/wires/components";
+
+export const BothLow = circuit(
+  { name: "BothLow", inputs: ["left", "right"], outputs: ["out"] },
+  ({ inputs, add, output }) => {
+    const nor = add(NOR, "nor", { a: inputs.left, b: inputs.right });
+    output("out", nor.outputs.out);
+  },
+);
+```
+
+`BothLow` appears in the same palette as a chip you drew. The starter also discovers named exports in `examples/`, including a four-bit adder. Placing an example creates an import, not a copy of its implementation. Use your text editor to change a chip's source; the canvas never rewrites it. Save completed chips before refreshing: drafts and screen positions are not saved.

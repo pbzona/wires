@@ -27,7 +27,7 @@
         "groups": [
           {
             "group": "Get started",
-            "pages": ["index", "quickstart"]
+            "pages": ["index", "quickstart", "workbench"]
           },
           {
             "group": "Concepts",

@@ -13,8 +13,23 @@ understanding, not generating optimized circuits. See
 
 | Path                                 | Package                     | Description                                                                              |
 | ------------------------------------ | --------------------------- | ---------------------------------------------------------------------------------------- |
-| [`packages/wires`](./packages/wires) | `@pbzona/wires` (published) | The library: engine (`@pbzona/wires`) and standard components (`@pbzona/wires/components`) |
+| [`packages/wires`](./packages/wires) | `@pbzona/wires` | The library: engine (`@pbzona/wires`) and standard components (`@pbzona/wires/components`) |
+| [`packages/wires-editor`](./packages/wires-editor) | `@pbzona/wires-editor` | Browser workbench: canvas, test bench and TypeScript source drawer |
+| [`packages/create-wires`](./packages/create-wires) | `@pbzona/create-wires` | CLI and vanilla Vite starter |
 | [`apps/docs`](./apps/docs)           | `docs` (private)            | The [Mintlify](https://mintlify.com) documentation site                                  |
+
+## Circuit workbench
+
+[`@pbzona/wires-editor`](./packages/wires-editor) is a framework-neutral canvas editor.
+[`@pbzona/create-wires`](./packages/create-wires) scaffolds a vanilla Vite app around it.
+To try the unpublished packages from this checkout, run `pnpm install` and **`pnpm workbench`**.
+Open the local URL it prints. This uses packed local libraries in a fresh temporary project;
+your chips stay there after you stop the server. See [checkout smoke test](./scripts/README.md).
+
+Once the editor and initializer are published, the equivalent command is `npm create @pbzona/wires my-lab`.
+The starter discovers named exports in `chips/` and `examples/`. **Save as chip** writes a new
+readable TypeScript module in `chips/`, never an editor-only format or an overwrite of existing code.
+On a static site, use **Source → Copy TypeScript** instead.
 
 ## Getting started
 
@@ -34,9 +49,9 @@ All root scripts run through `turbo`, which caches results and builds
 
 | Command                  | What it runs                                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `pnpm build`             | `@pbzona/wires`: compile to `dist/`                                                                          |
-| `pnpm typecheck`         | `@pbzona/wires`: `tsc` over src, tests and examples                                                          |
-| `pnpm test`              | `@pbzona/wires`: Vitest. `docs`: type-check and run every code example in the docs against the built library |
+| `pnpm build`             | Compile the engine and editor to `dist/` |
+| `pnpm typecheck`         | Type-check the engine, editor and generated app template |
+| `pnpm test`              | Test the engine, editor, scaffold and save behavior; type-check and run the docs examples |
 | `pnpm lint`              | `docs`: `mint validate` and `mint broken-links`                                                              |
 | `pnpm check`             | All of the above                                                                                             |
 | `pnpm dev` / `pnpm docs` | `mint dev` for the docs site                                                                                 |
