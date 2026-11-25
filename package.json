@@ -12,7 +12,8 @@
     "release:verify": "node scripts/smoke-starter.mjs --tarballs dist/npm --online",
     "release:dry-run": "turbo run npm:preview --filter=@pbzona/*",
     "release": "turbo run npm:publish --ui=tui --filter=@pbzona/*",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=docs",
+    "demo": "turbo run dev --filter=workbench-demo",
     "docs": "turbo run dev --filter=docs",
     "workbench": "turbo run build --filter=@pbzona/wires-editor && node scripts/smoke-starter.mjs --dev"
   },

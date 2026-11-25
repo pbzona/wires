@@ -6,6 +6,8 @@ icon: "microchip"
 
 The workbench is a browser app that uses the same [simulator](/concepts/simulation-model) as your TypeScript circuits. To try it from this checkout, run `pnpm install` and `pnpm workbench` from the repository root. Open the local URL it prints. The command prints the location of your generated project too; chip files stay there after the server stops.
 
+For a browser-only playground, run `pnpm demo` from the repo root instead. It starts with the same half adder and standard chip library, but never writes files. Reloading starts a fresh circuit.
+
 ## Watch a half adder
 
 The opening sheet has inputs `a` and `b`. They feed an XOR for `sum` and an AND for `carry`. Set both inputs to `1`. Press **Step** to advance one tick, then **Run to stable**: the outputs settle to `sum = 0`, `carry = 1`. The input controls queue a change; the labels on the canvas show what the signals actually are at that tick. `X` means unknown. Double-click the XOR to see the gates inside it; use the breadcrumb to get back.

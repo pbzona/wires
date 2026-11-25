@@ -1,0 +1,8 @@
+body { margin: 0; background: #faf9f5; }
+.demo-note {
+  margin: 0; padding: 9px clamp(12px, 2vw, 24px); background: #16493c; color: #fffefa;
+  font: 14px/1.5 system-ui, sans-serif; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px;
+}
+.demo-note strong { font: 600 12px/1.5 ui-monospace, monospace; }
+.demo-note small { margin-left: auto; font-size: 12px; color: #d8ebe3; }
+@media (max-width: 740px) { .demo-note small { margin-left: 0; } }

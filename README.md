@@ -16,15 +16,16 @@ understanding, not generating optimized circuits. See
 | [`packages/wires`](./packages/wires) | `@pbzona/wires` | The library: engine (`@pbzona/wires`) and standard components (`@pbzona/wires/components`) |
 | [`packages/wires-editor`](./packages/wires-editor) | `@pbzona/wires-editor` | Browser workbench: canvas, test bench and TypeScript source drawer |
 | [`packages/create-wires`](./packages/create-wires) | `@pbzona/create-wires` | CLI and vanilla Vite starter |
+| [`apps/workbench`](./apps/workbench) | `workbench-demo` (private) | Browser-only playground for trying the editor, ready to host on Vercel |
 | [`apps/docs`](./apps/docs)           | `docs` (private)            | The [Mintlify](https://mintlify.com) documentation site                                  |
 
 ## Circuit workbench
 
 [`@pbzona/wires-editor`](./packages/wires-editor) is a framework-neutral canvas editor.
 [`@pbzona/create-wires`](./packages/create-wires) scaffolds a vanilla Vite app around it.
-To try the unpublished packages from this checkout, run `pnpm install` and **`pnpm workbench`**.
-Open the local URL it prints. This uses packed local libraries in a fresh temporary project;
-your chips stay there after you stop the server. See [checkout smoke test](./scripts/README.md).
+After `pnpm install`, run **`pnpm demo`** for the browser-only playground. It starts on a working half adder and resets on refresh. See [hosting the demo on Vercel](./apps/workbench/README.md#vercel).
+
+For the local, file-saving starter, run **`pnpm workbench`** and open the URL it prints. This uses packed local libraries in a fresh temporary project; your chips stay there after you stop the server. See [checkout smoke test](./scripts/README.md).
 
 Once the editor and initializer are published, the equivalent command is `npm create @pbzona/wires my-lab`.
 The starter discovers named exports in `chips/` and `examples/`. **Save as chip** writes a new
@@ -49,7 +50,7 @@ All root scripts run through `turbo`, which caches results and builds
 
 | Command                  | What it runs                                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `pnpm build`             | Compile the engine and editor to `dist/` |
+| `pnpm build`             | Build the engine, editor and static demo to their `dist/` directories |
 | `pnpm typecheck`         | Type-check the engine, editor and generated app template |
 | `pnpm test`              | Test the engine, editor, scaffold and save behavior; type-check and run the docs examples |
 | `pnpm lint`              | `docs`: `mint validate` and `mint broken-links`                                                              |
