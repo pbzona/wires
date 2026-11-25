@@ -20,6 +20,9 @@
   "icons": {
     "library": "lucide"
   },
+  "navbar": {
+    "links": [{ "label": "GitHub", "href": "https://github.com/pbzona/wires" }]
+  },
   "navigation": {
     "tabs": [
       {
