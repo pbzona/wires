@@ -218,7 +218,6 @@ function runBuilder(
       inputs = maybeInputs;
       assertName(name, "component instance name", circuitName);
       if (RESERVED_INSTANCE_NAMES.has(name)) fail(`"${name}" is a reserved name and cannot name a component instance`);
-      if (instancesByName.has(name)) fail(`Duplicate component instance name "${name}"`);
     } else {
       if (maybeInputs !== undefined) fail(`add(${child.name}, ...): the instance name must be a string`);
       inputs = nameOrInputs;
@@ -239,6 +238,7 @@ function runBuilder(
     handle.outputs = portsOf(handle, child.outputs, "output", "source");
     const instance = Object.freeze(handle) as ComponentInstance;
 
+    const sources: Array<[string, Port]> = [];
     if (inputs !== undefined) {
       if (typeof inputs !== "object" || inputs === null) {
         fail(`add(${child.name}, "${name}", ...) expects its inputs as an object like { a: inputs.a }`);
@@ -249,17 +249,15 @@ function runBuilder(
           fail(`${child.name} has no input "${key}" (its inputs are ${child.inputs.join(", ") || "none"})`);
         }
       }
-      // Check every source before recording anything, so a failed add() leaves no partial wiring.
-      const sources = child.inputs
-        .filter((key) => Object.hasOwn(given, key))
-        .map((key) => [key, checkSource(given[key], `${name}.inputs.${key}`)] as const);
-      instancesByName.set(name, instance);
-      instanceRecords.push(Object.freeze({ name, definition: child }));
-      for (const [key, source] of sources) connect(instance.inputs[key]!, source);
-    } else {
-      instancesByName.set(name, instance);
-      instanceRecords.push(Object.freeze({ name, definition: child }));
+      for (const key of child.inputs) {
+        if (Object.hasOwn(given, key)) sources.push([key, checkSource(given[key], `${name}.inputs.${key}`)]);
+      }
     }
+    // A wiring getter can itself add parts. Check the name after reading all the sources.
+    if (instancesByName.has(name)) fail(`Duplicate component instance name "${name}"`);
+    instancesByName.set(name, instance);
+    instanceRecords.push(Object.freeze({ name, definition: child }));
+    for (const [key, source] of sources) connect(instance.inputs[key]!, source);
     return instance;
   };
 
@@ -291,9 +289,15 @@ function runBuilder(
     output,
   });
 
-  const result: unknown = build(builder);
-  sealed = true;
+  let result: unknown;
+  try {
+    result = build(builder);
+  } finally {
+    sealed = true;
+  }
   if (typeof (result as { then?: unknown } | undefined)?.then === "function") {
+    // The caller gets a synchronous CircuitError, not the builder's promise.
+    void Promise.resolve(result).catch(() => {});
     fail("circuit builder functions must be synchronous");
   }
 

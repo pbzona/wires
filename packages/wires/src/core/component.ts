@@ -1,5 +1,5 @@
 import { CircuitError } from "./errors.js";
-import type { Signal } from "./signal.js";
+import { describeValue, type Signal } from "./signal.js";
 
 /** Direction of a port as seen from outside its component. */
 export type Direction = "input" | "output";
@@ -164,7 +164,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 export function assertName(value: unknown, what: string, path?: string): asserts value is string {
   if (typeof value !== "string" || !IDENTIFIER.test(value) || value === "__proto__") {
     throw new CircuitError(
-      `Invalid ${what} ${JSON.stringify(value) ?? String(value)}: names must be identifiers ` +
+      `Invalid ${what} ${describeValue(value)}: names must be identifiers ` +
         `(letters, digits and underscores, not starting with a digit)`,
       path,
     );

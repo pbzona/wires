@@ -171,6 +171,10 @@ describe("validation", () => {
       () => gate({ name: "G", inputs: ["a.b"], outputs: [], evaluate: () => ({}) }),
       /Invalid input port name "a.b"/,
     );
+    expectCircuitError(
+      () => gate({ name: "G", inputs: [1n as never], outputs: [], evaluate: () => ({}) }),
+      /^G: Invalid input port name 1n/,
+    );
     expectCircuitError(() => gate({ name: "G", inputs: [], outputs: [], evaluate: 1 as never }), /evaluate must be/);
   });
 
@@ -186,6 +190,19 @@ describe("validation", () => {
     expectCircuitError(
       () => circuit({ name: "C", inputs: ["a"], outputs: [] }, ({ inputs, add }) => void add(BUF, "inputs", { a: inputs.a })),
       /reserved name/,
+    );
+  });
+
+  it("rejects duplicate names even if reading the wiring adds another part", () => {
+    expectCircuitError(
+      () => circuit({ name: "Pair", inputs: ["a"], outputs: [] }, ({ inputs, add }) => {
+        add(BUF, "part", {
+          get a() {
+            return add(BUF, "part", { a: inputs.a }).outputs.out;
+          },
+        });
+      }),
+      /^Pair: Duplicate component instance name "part"/,
     );
   });
 
@@ -344,10 +361,23 @@ describe("validation", () => {
     expectCircuitError(() => saved!.add(BUF), /after the circuit builder finished/);
   });
 
-  it("rejects asynchronous builders", () => {
+  it("closes the builder even when its callback throws", () => {
+    let addLater: () => unknown;
+    expect(() => circuit({ name: "C", inputs: [], outputs: [] }, ({ add }) => {
+      addLater = () => add(BUF);
+      throw new Error("build failed");
+    })).toThrow("build failed");
+    expectCircuitError(() => addLater(), /after the circuit builder finished/);
+  });
+
+  it("reports an asynchronous builder without leaking a second, unhandled error", async () => {
     expectCircuitError(
-      () => circuit({ name: "C", inputs: [], outputs: [] }, (async () => {}) as never),
+      () => circuit({ name: "C", inputs: [], outputs: [] }, async ({ add }) => {
+        await Promise.resolve();
+        add(BUF); // the builder has already closed
+      }),
       /must be synchronous/,
     );
+    await new Promise<void>((resolve) => setImmediate(resolve));
   });
 });
