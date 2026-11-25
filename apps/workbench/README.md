@@ -13,4 +13,4 @@ pnpm --filter workbench-demo preview
 
 ## Vercel
 
-Import the `pbzona/wires` repository and set the project's **Root Directory** to `apps/workbench`. Use **Node.js 24.x** and enable **Include files outside the Root Directory in the Build Step** so Turbo can build the workspace libraries. The app's `vercel.json` selects Vite, installs the pinned pnpm workspace through Corepack, runs the filtered Turbo build, and serves `dist/`. No environment variables or backend are needed.
+Import the `pbzona/wires` repository and set the project's **Root Directory** to `apps/workbench`. Use **Node.js 24.x** and enable **Include files outside the Root Directory in the Build Step** so Turbo can build the workspace libraries. The app's `vercel.json` selects Vite, installs the pinned pnpm workspace through Corepack, runs the filtered Turbo build, and serves `dist/`. The build puts a workspace-local Corepack shim first on `PATH`, so Turbo's package tasks use the same pnpm version as the install rather than Vercel's global pnpm. No environment variables or backend are needed.

@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "installCommand": "cd ../.. && corepack pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && corepack pnpm exec turbo run build --filter=workbench-demo",
+  "buildCommand": "cd ../.. && corepack enable --install-directory node_modules/.bin pnpm && PATH=\"$PWD/node_modules/.bin:$PATH\" turbo run build --filter=workbench-demo",
   "outputDirectory": "dist"
 }
