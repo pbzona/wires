@@ -75,7 +75,10 @@ try {
   console.log('Imported and elaborated Adder4 with no demo output; editor and app resolve the same wires.');
   run(app, 'pnpm', 'exec', 'tsc', '--noEmit');
   run(app, 'pnpm', 'run', 'build');
-  accessSync(join(app, 'dist', 'index.html'));
+  const html = readFileSync(join(app, 'dist', 'index.html'), 'utf8');
+  assert.match(html, /<link rel="icon"[^>]* href="\/favicon\.svg"/);
+  assert.equal(readFileSync(join(app, 'dist', 'favicon.svg'), 'utf8'),
+    readFileSync(new URL('../apps/docs/favicon.svg', import.meta.url), 'utf8'), 'Built starter should use the wires favicon');
   console.log('Starter smoke passed.');
 
   if (dev) {

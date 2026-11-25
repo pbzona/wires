@@ -29,7 +29,10 @@ test("creates a standalone project in a new directory, without installing anythi
     assert.ok(files.includes(name), `missing ${name}`);
   }
   assert.ok(!files.includes("node_modules"));
-  assert.match(await readFile(join(root, "public/nand.svg"), "utf8"), /NAND gate/);
+  const html = await readFile(join(root, "index.html"), "utf8");
+  assert.match(html, /<link rel="icon"[^>]* href="\/favicon\.svg"/);
+  const favicon = await readFile(join(root, "public/favicon.svg"), "utf8");
+  assert.equal(favicon, await readFile(new URL("../../../apps/docs/favicon.svg", import.meta.url), "utf8"));
   const example = await readFile(join(root, "examples/Adder4.ts"), "utf8");
   assert.equal(example, await readFile(new URL("../../wires/examples/Adder4.ts", import.meta.url), "utf8"));
   const demo = spawnSync(process.execPath, [fileURLToPath(new URL("../../wires/examples/Adder4.ts", import.meta.url))], { encoding: "utf8" });
