@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "maple",
   "name": "wires",
   "description": "Learn how computers work by building digital logic from a single NAND gate up, in readable TypeScript.",
   "markdown": {
