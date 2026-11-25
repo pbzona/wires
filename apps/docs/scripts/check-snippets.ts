@@ -2,7 +2,7 @@
 // them against the workspace `@pbzona/wires` package, then runs each one with Node.
 //
 // A code block is checked when its language is `ts` or `typescript` and its
-// first line is an `import` from "@pbzona/wires" or "@pbzona/wires/components".
+// first statement imports from "@pbzona/wires" or "@pbzona/wires/components".
 // Fragments that don't start with an import are documentation-only and skipped.
 //
 // Run: pnpm --filter docs test   (requires `@pbzona/wires` to be built; turbo does this)
@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractSnippets } from "./extract-snippets.ts";
 
 const docsRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = join(docsRoot, ".snippets");
@@ -23,39 +24,16 @@ function findPages(dir: string): string[] {
   });
 }
 
-type Snippet = { page: string; line: number; file: string; code: string };
-
-function extract(page: string): Snippet[] {
-  const lines = readFileSync(page, "utf8").split("\n");
-  const snippets: Snippet[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const open = /^(\s*)```(ts|typescript)\b/.exec(lines[i]!);
-    if (!open) continue;
-    const indent = open[1]!.length;
-    const body: string[] = [];
-    let j = i + 1;
-    for (; j < lines.length && !/^\s*```\s*$/.test(lines[j]!); j++) body.push(lines[j]!.slice(indent));
-    const code = body.join("\n");
-    if (/^import\b[^\n]*from "@pbzona\/wires(\/components)?";/.test(code)) {
-      const name = relative(docsRoot, page).replace(/\.mdx$/, "").replace(/[\\/]/g, "__");
-      snippets.push({ page: relative(docsRoot, page), line: i + 1, file: `${name}__L${i + 1}.ts`, code });
-    }
-    i = j;
-  }
-  return snippets;
-}
-
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
-const snippets = findPages(docsRoot).sort().flatMap(extract);
+const snippets = findPages(docsRoot).sort().flatMap((page) =>
+  extractSnippets(relative(docsRoot, page), readFileSync(page, "utf8")),
+);
 for (const s of snippets) writeFileSync(join(outDir, s.file), `${s.code}\n`);
 console.log(`Found ${snippets.length} runnable snippets`);
 
-const tsc = join(docsRoot, "node_modules", ".bin", "tsc");
-const typecheck = spawnSync(tsc, ["-p", join(docsRoot, "tsconfig.json")], {
-  stdio: "inherit",
-  shell: process.platform === "win32",
-});
+const tsc = join(docsRoot, "node_modules", "typescript", "bin", "tsc");
+const typecheck = spawnSync(process.execPath, [tsc, "-p", join(docsRoot, "tsconfig.json")], { stdio: "inherit" });
 if (typecheck.status !== 0) {
   console.error("Type errors in documentation snippets (see .snippets/<page>__L<line>.ts)");
   process.exit(1);

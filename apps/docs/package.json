@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "mint dev",
     "lint": "mint validate && mint broken-links",
-    "test": "node scripts/check-snippets.ts"
+    "test": "node --test scripts/extract-snippets.test.ts && node scripts/check-snippets.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
