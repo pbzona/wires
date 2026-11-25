@@ -9,6 +9,9 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "check": "turbo run typecheck test build lint",
+    "release:verify": "node scripts/smoke-starter.mjs --tarballs dist/npm --online",
+    "release:dry-run": "turbo run npm:preview --filter=@pbzona/*",
+    "release": "turbo run npm:publish --filter=@pbzona/*",
     "dev": "turbo run dev",
     "docs": "turbo run dev --filter=docs",
     "workbench": "turbo run build --filter=@pbzona/wires-editor && node scripts/smoke-starter.mjs --dev"

@@ -57,6 +57,7 @@ try {
   }
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   run(app, 'pnpm', 'install', online ? '--prefer-offline' : '--offline',
+    ...(tarballs ? ['--registry=https://registry.npmjs.org/'] : []),
     '--ignore-workspace', '--no-frozen-lockfile', '--ignore-scripts', '--strict-peer-dependencies');
 
   // Resolve imports FROM the consumer, not relative to this script's checkout.

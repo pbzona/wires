@@ -17,6 +17,24 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "release:pack": {
+      "dependsOn": ["build", "test", "typecheck"],
+      "cache": false
+    },
+    "//#release:verify": {
+      "dependsOn": ["@pbzona/wires#release:pack", "@pbzona/wires-editor#release:pack", "@pbzona/create-wires#release:pack", "docs#test", "docs#lint"],
+      "cache": false
+    },
+    "npm:preview": {
+      "dependsOn": ["//#release:verify", "^npm:preview"],
+      "cache": false
+    },
+    "npm:publish": {
+      "dependsOn": ["//#release:verify", "^npm:publish"],
+      "cache": false,
+      "interactive": true,
+      "passThroughEnv": ["NPM_TOKEN", "NODE_AUTH_TOKEN", "NPM_CONFIG_USERCONFIG", "NPM_CONFIG_OTP"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

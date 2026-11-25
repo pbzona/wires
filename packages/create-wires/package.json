@@ -32,6 +32,9 @@
   "scripts": {
     "typecheck": "tsc -p template/tsconfig.json",
     "test": "node --test tests/*.test.js",
+    "release:pack": "pnpm --config.ignore-scripts=true pack --pack-destination ../../dist/npm",
+    "npm:preview": "node ../../scripts/publish-tarball.mjs --dry-run",
+    "npm:publish": "node ../../scripts/publish-tarball.mjs --publish",
     "prepublishOnly": "pnpm typecheck && pnpm test"
   },
   "engines": { "node": "^24 || >=26" },

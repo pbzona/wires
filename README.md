@@ -61,23 +61,13 @@ To run one package's tasks, filter by name:
 
 ## Publishing
 
-Only `@pbzona/wires`, `@pbzona/wires-editor`, and `@pbzona/create-wires` are publishable. The workspace root, docs, and generated app are private. All three public manifests target `https://registry.npmjs.org/` with public access.
-
-**Prepare from the repository root.** Check that the versions you intend to release are unused on npm. For a later release, also check the editor's `@pbzona/wires` peer range and both dependency ranges in `packages/create-wires/template/package.json`. Use pnpm to pack: it replaces `workspace:` references in the tarballs with real versions. Both libraries clean and rebuild `dist/` during packing.
+From the repository root, after installing dependencies:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm check
-pnpm -r --filter '@pbzona/*' pack --pack-destination "$PWD/dist/npm"
-node scripts/smoke-starter.mjs --tarballs dist/npm
+pnpm release:dry-run   # build, check, pack, test a fresh scaffold, and preview npm publication
+pnpm release           # repeat the checks and publish the verified archives to public npm
 ```
 
-The smoke test scaffolds, installs, type-checks and builds a Vite app from those exact tarballs without publishing. Preview npm's publish operation for each archive (example for `0.1.0`):
+For a live release, commit the versions and changes you want to ship, use a clean worktree, and sign in to npm with publish access to `@pbzona`. Turbo follows the workspace dependencies: `@pbzona/wires` first, then `@pbzona/wires-editor`, then `@pbzona/create-wires`. The private root and docs packages are never published.
 
-```sh
-npm publish ./dist/npm/pbzona-wires-0.1.0.tgz --dry-run --access public --registry=https://registry.npmjs.org/
-npm publish ./dist/npm/pbzona-wires-editor-0.1.0.tgz --dry-run --access public --registry=https://registry.npmjs.org/
-npm publish ./dist/npm/pbzona-create-wires-0.1.0.tgz --dry-run --access public --registry=https://registry.npmjs.org/
-```
-
-**Release only after review.** Ensure the tested source is committed, sign in with a publish-capable `@pbzona` account, and run the same three commands **without `--dry-run`**, in the order shown. Publish the initializer last so `npm create @pbzona/wires` never scaffolds an app that references unpublished libraries. npm will not let you reuse a published name/version. No credentials belong in this repository.
+The release smoke test builds the starter from the exact tarballs in `dist/npm/`. Publication is never cached. If a release stops partway through, fix the issue and run `pnpm release` again: it skips an already-published version only when its tarball matches. Changed contents require a new version. When bumping versions, also check the editor's peer range and the starter template's library dependencies.
