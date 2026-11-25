@@ -271,12 +271,19 @@ function evaluateGate(gate: CompiledGate, values: readonly Signal[]): Signal[] {
   try {
     result = gate.evaluate(Object.freeze(inputs));
   } catch (cause) {
-    throw new SimulationError(`${where} threw during evaluation: ${(cause as Error)?.message ?? cause}`, { cause });
+    const reason = (cause as Error)?.message ?? cause;
+    const message = typeof reason === "string" ? reason : describeValue(reason);
+    throw new SimulationError(`${where} threw during evaluation: ${message}`, { cause });
   }
   if (typeof result !== "object" || result === null) {
     throw new SimulationError(`${where} must return an object of outputs (got ${describeValue(result)})`);
   }
   const out = result as Record<string, unknown>;
+  if (typeof out.then === "function") {
+    // Report the invalid evaluator now, even if its promise rejects later.
+    void Promise.resolve(result).catch(() => {});
+    throw new SimulationError(`${where} must be synchronous`);
+  }
   for (const key of Object.keys(out)) {
     if (!gate.outputNames.includes(key)) {
       throw new SimulationError(`${where} returned unexpected output "${key}" (outputs are ${list(gate.outputNames)})`);

@@ -52,4 +52,4 @@ const NAND = gate({
 | Thrown | When |
 | --- | --- |
 | `CircuitError` (immediately) | The name or a port name isn't an identifier, a port name is repeated, or `evaluate` isn't a function |
-| `SimulationError` (during simulation) | `evaluate` throws, returns something other than an object, omits an output, adds an unknown output, or returns a non-signal value |
+| `SimulationError` (during simulation) | `evaluate` throws, returns a promise instead of synchronous outputs, returns a non-object, omits an output, adds an unknown output, or returns a non-signal value |

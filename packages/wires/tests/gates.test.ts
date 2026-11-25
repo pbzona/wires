@@ -98,8 +98,24 @@ describe("custom primitives", () => {
     expect(runError(badGate("Lower", () => ({ out: "x" })))).toMatch(/invalid signal for output "out": "x"/);
   });
 
+  it("rejects an asynchronous evaluator even when there are no outputs to validate", async () => {
+    const probe = gate({
+      name: "Probe",
+      inputs: [],
+      outputs: [],
+      evaluate: async () => {
+        throw new Error("late failure");
+      },
+    });
+    expect(() => simulate(probe).run()).toThrow(new SimulationError("Primitive Probe at root must be synchronous"));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  });
+
   it("reports non-object results and thrown errors", () => {
     expect(runError(badGate("Nothing", () => undefined))).toMatch(/must return an object of outputs/);
+    expect(runError(badGate("Throws", () => { throw Symbol("boom"); }))).toBe(
+      "Primitive Throws at root.bad threw during evaluation: Symbol(boom)",
+    );
     expect(
       runError(
         badGate("Throws", () => {
