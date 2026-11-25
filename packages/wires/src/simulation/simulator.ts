@@ -218,7 +218,7 @@ class State implements SimulationState {
       }
       state = state.step();
       ticks++;
-      recent.push(...state.changes);
+      recent.push(...state.changes.slice(-RECENT_LIMIT));
       if (recent.length > RECENT_LIMIT) recent.splice(0, recent.length - RECENT_LIMIT);
     }
     return state;

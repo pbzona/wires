@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NAND, NOT, SRLatch } from "@pbzona/wires/components";
-import { StabilizationError, circuit, simulate } from "@pbzona/wires";
+import { StabilizationError, circuit, gate, simulate } from "@pbzona/wires";
 
 /** NAND(enable, feedback) followed by two inverters, fed back: a three-stage ring oscillator. */
 const RingOscillator = circuit(
@@ -94,6 +94,14 @@ describe("feedback loops", () => {
 
     // States are never changed, so the one before the failing run is still usable.
     expect(enabled.set({ enable: 0 }).run().read("out")).toBe(1);
+  });
+
+  it("reports only the last 16 transitions even when a step exceeds the JS argument limit", () => {
+    const names = Array.from({ length: 130_000 }, (_, i) => `bit${String(i).padStart(6, "0")}`);
+    const wide = gate({ name: "Wide", inputs: names, outputs: ["out"], evaluate: () => ({ out: 1 }) });
+    const state = simulate(wide, { maxTicks: 1 }).set(Object.fromEntries(names.map((name) => [name, 1])));
+    const error = catchStabilization(() => state.run());
+    expect(error.recentChanges.map((change) => change.wire)).toEqual(names.slice(-16).map((name) => `root.inputs.${name}`));
   });
 
   it("applies the limit per run() call", () => {
