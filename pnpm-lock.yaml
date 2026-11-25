@@ -27,6 +27,27 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/create-wires:
+    devDependencies:
+      '@pbzona/wires':
+        specifier: workspace:*
+        version: link:../wires
+      '@pbzona/wires-editor':
+        specifier: workspace:*
+        version: link:../wires-editor
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      rolldown:
+        specifier: ~1.2.19
+        version: 1.2.19
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.8
+        version: 8.3.8(@types/node@24.19.2)
+
   packages/wires:
     devDependencies:
       '@types/node':

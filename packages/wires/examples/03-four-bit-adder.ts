@@ -1,24 +1,7 @@
 // A four-bit ripple-carry adder built from standard full adders.
 // Run: pnpm build && node examples/03-four-bit-adder.ts
-import { circuit, elaborate, simulate, type Signal, type SourcePort } from "@pbzona/wires";
-import { FullAdder } from "@pbzona/wires/components";
-
-const Adder4 = circuit(
-  {
-    name: "Adder4",
-    inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
-    outputs: ["s0", "s1", "s2", "s3", "carryOut"],
-  },
-  ({ inputs, add, output }) => {
-    let carry: SourcePort = inputs.carryIn;
-    for (const i of [0, 1, 2, 3] as const) {
-      const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
-      output(`s${i}`, fa.outputs.sum);
-      carry = fa.outputs.carryOut;
-    }
-    output("carryOut", carry);
-  },
-);
+import { elaborate, simulate, type Signal } from "@pbzona/wires";
+import { Adder4 } from "./Adder4.ts";
 
 const bits = (prefix: string, n: number) =>
   Object.fromEntries([0, 1, 2, 3].map((i) => [`${prefix}${i}`, ((n >> i) & 1) as Signal]));
