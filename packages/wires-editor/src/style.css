@@ -1,78 +1,98 @@
+/* Maple's warm grays and orange accents, shared by the editor, canvas and demo banner. */
+.wires-theme, .wires-editor {
+  color-scheme: light;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: "Paper Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --paper: #ffffff; --sheet: #fcfbfa; --subtle: #f8f4f3;
+  --ink: #1c1817; --muted: #555150; --line: #e4e0de; --control-line: #aaa29e;
+  --accent: #c2410c; --accent-hover: #9a3412; --accent-soft: #fff1e8; --on-accent: #ffffff;
+  --high: #166348; --high-soft: #e5f3eb; --unknown: #80550b; --unknown-soft: #fff3d8;
+}
+@media (prefers-color-scheme: dark) {
+  .wires-theme, .wires-editor {
+    color-scheme: dark;
+    --paper: #1c1817; --sheet: #0e0c0c; --subtle: #252120;
+    --ink: #e4e0de; --muted: #b4adaa; --line: #393432; --control-line: #7c7470;
+    --accent: #fb923c; --accent-hover: #fdba74; --accent-soft: #3b2319; --on-accent: #1c1817;
+    --high: #83d5a9; --high-soft: #1b352a; --unknown: #e9be69; --unknown-soft: #372c1c;
+  }
+}
 .wires-editor {
-  --paper: #fffefa; --sheet: #faf9f5; --ink: #202a27; --muted: #59665e; --line: #d9ded5;
-  --live: #006653; --mint: #e0f3e9; --unknown: #885710;
-  color-scheme: light; color: var(--ink); background: var(--sheet); min-height: 100dvh;
-  font: 14px/1.45 system-ui, sans-serif; text-align: left;
+  color: var(--ink); background: var(--sheet); min-height: 100dvh;
+  font: 14px/1.5 var(--sans); text-align: left;
 }
 .wires-editor *, .wires-editor *::before, .wires-editor *::after { box-sizing: border-box; }
 .wires-editor [hidden] { display: none !important; }
 .wires-editor :is(h1,h2,h3,p) { margin: 0; }
-.wires-editor h1 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.045em; line-height: 1.2; overflow-wrap: anywhere; }
-.wires-editor h2 { font-size: 20px; letter-spacing: -.04em; }
-.wires-editor h3, .we-kicker, .we-stamp, .we-caption, .we-group { font: 600 10px/1.5 ui-monospace, monospace; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.wires-editor h1 { font-size: clamp(26px, 3vw, 36px); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; overflow-wrap: anywhere; }
+.wires-editor h2 { font-size: 20px; font-weight: 600; letter-spacing: -.025em; }
+.wires-editor h3, .we-kicker, .we-group { font: 600 12px/1.5 var(--sans); color: var(--muted); }
+.we-kicker { color: var(--accent); }
+.we-stamp, .we-caption { font: 500 12px/1.5 var(--mono); color: var(--muted); }
 .wires-editor :is(button, input, select) { font: inherit; color: inherit; }
-.wires-editor :is(input, select) { background: var(--paper); border: 1px solid #b8c1b7; border-radius: 5px; padding: 7px 9px; max-width: 100%; }
-.wires-editor button { cursor: pointer; border: 1px solid #bcc6bc; border-radius: 5px; background: var(--paper); padding: 6px 12px; font-weight: 560; }
-.wires-editor button:hover:enabled { border-color: var(--live); color: var(--live); background: #ecf4ec; }
+.wires-editor :is(input, select) { background: var(--paper); border: 1px solid var(--control-line); border-radius: 5px; padding: 7px 9px; max-width: 100%; }
+.wires-editor button { cursor: pointer; border: 1px solid var(--control-line); border-radius: 5px; background: var(--paper); padding: 6px 12px; font-weight: 550; }
+.wires-editor button:hover:enabled { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .wires-editor button:disabled { opacity: .48; cursor: not-allowed; }
-.wires-editor :focus-visible { outline: 3px solid #1d8f7d; outline-offset: 2px; }
-.wires-editor button.we-primary { color: white; background: var(--live); border-color: var(--live); }
-.wires-editor button.we-dark { color: white; background: var(--ink); border-color: var(--ink); }
-.wires-editor :is(button.we-primary, button.we-dark):hover:enabled { color: white; background: #144b40; }
+.wires-editor :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wires-editor button.we-primary { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+.wires-editor button.we-dark { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+.wires-editor :is(button.we-primary, button.we-dark):hover:enabled { color: var(--on-accent); background: var(--accent-hover); border-color: var(--accent-hover); }
 .we-mast, .we-brand, .we-actions, .we-sheet-head, .we-bench-head, .we-board-head, .we-caption, .we-zoom { display: flex; align-items: center; }
 .we-mast, .we-sheet-head, .we-bench-head, .we-board-head, .we-caption { justify-content: space-between; gap: 12px; }
 .we-mast { min-height: 66px; padding: 12px 24px; background: var(--paper); border-bottom: 1px solid var(--line); }
-.we-brand { gap: 12px; font-size: 15px; }.we-brand svg { color: var(--live); }.we-brand strong { font-size: 24px; letter-spacing: -.06em; }.we-brand span { color: #a6b0a5; }
+.we-brand { gap: 12px; font-size: 15px; }.we-brand svg { color: #9a3412; }.we-brand strong { font-size: 24px; font-weight: 650; letter-spacing: -.035em; }.we-brand span { color: var(--control-line); }
 .we-actions { flex-wrap: wrap; gap: 8px; }.we-body { display: grid; grid-template-columns: clamp(180px, 19vw, 248px) minmax(0,1fr); }
-.we-library { padding: 24px 16px; border-right: 1px solid var(--line); background: #f0f2ea; min-width: 0; }
+.we-library { padding: 24px 16px; border-right: 1px solid var(--line); background: var(--paper); min-width: 0; }
 .we-library h2 { margin: 3px 0 14px; font-size: 25px; }.we-library input { width: 100%; background: var(--paper); }
 .we-palette { display: grid; gap: 15px; margin: 18px 0; }.we-group { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }.we-group::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-.wires-editor .we-part { display: flex; align-items: center; width: 100%; gap: 8px; border: 1px solid transparent; background: transparent; padding: 4px 6px; text-align: left; font: 550 13px/1.5 ui-monospace, monospace; }
-.we-part span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.we-part span:last-child { margin-left: auto; color: var(--muted); }.we-part .we-glyph { color: var(--live); font-size: 15px; }
-.we-library-note { display: block; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }.we-library-note code { color: var(--ink); }
+.wires-editor .we-part { display: flex; align-items: center; width: 100%; gap: 8px; border: 1px solid transparent; background: transparent; padding: 4px 6px; text-align: left; font: 500 14px/1.5 var(--sans); }
+.we-part span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.we-part span:last-child { margin-left: auto; color: var(--muted); }.we-part .we-glyph { color: var(--accent); font-size: 15px; }
+.we-library-note { display: block; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }.wires-editor code { color: var(--ink); font-family: var(--mono); }
 .we-work { min-width: 0; padding: 0 clamp(12px,2.5vw,40px) 32px; }.we-sheet-head { padding: 21px 0 16px; }
 .we-board-head { min-height: 38px; padding: 5px 10px; border: 1px solid var(--line); border-bottom: 0; background: var(--paper); border-radius: 7px 7px 0 0; }
-.we-board-head nav { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font: 12px ui-monospace, monospace; }.we-board-head nav span { color: var(--muted); }
-.we-board-head button { font-size: 12px; padding: 2px 8px; }.we-board-head nav button { border: 0; color: var(--live); }.we-zoom { gap: 4px; }
+.we-board-head nav { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font: 12px var(--mono); }.we-board-head nav span { color: var(--muted); }
+.we-board-head button { font-size: 12px; padding: 2px 8px; }.we-board-head nav button { border: 0; color: var(--accent); }.we-zoom { gap: 4px; }
 .we-sheet { height: clamp(270px, 45dvh, 640px); border: 1px solid var(--line); position: relative; overflow: hidden; background: var(--sheet); }
 .we-sheet canvas { display: block; width: 100%; height: 100%; touch-action: none; }.we-sheet canvas:focus-visible { outline-offset: -3px; }
-.we-caption { border: 1px solid var(--line); border-top: 0; border-radius: 0 0 7px 7px; background: var(--paper); min-height: 30px; padding: 6px 10px; font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; }.we-caption span:last-child { white-space: nowrap; }
+.we-caption { border: 1px solid var(--line); border-top: 0; border-radius: 0 0 7px 7px; background: var(--paper); min-height: 30px; padding: 6px 10px; font: 400 12px/1.5 var(--sans); }.we-caption span:last-child { white-space: nowrap; }
 .we-bench, .we-wiring, .we-source { margin-top: 14px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 7px; }
-.we-bench-head { flex-wrap: wrap; }.we-stamp { padding: 4px 8px; background: #edf0e9; border-radius: 4px; text-transform: none; letter-spacing: .03em; font-size: 11px; }
+.we-bench-head { flex-wrap: wrap; }.we-stamp { padding: 4px 8px; background: var(--subtle); border-radius: 4px; text-transform: none; letter-spacing: .03em; font-size: 11px; }
 .we-io { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }.we-pins { display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 5px; }
-.we-pin { display: inline-flex; align-items: center; gap: 6px; font: 13px ui-monospace, monospace; }
+.we-pin { display: inline-flex; align-items: center; gap: 6px; font: 13px var(--mono); }
 .we-pin output { display: inline-block; min-width: 24px; text-align: center; padding: 2px; border: 1px solid var(--line); border-radius: 4px; }
-.we-pin [data-value="1"] { color: var(--live); background-color: var(--mint); }
-.we-pin [data-value="X"] { color: var(--unknown); background-color: #fcf1d7; }
+.we-pin [data-value="1"] { color: var(--high); background-color: var(--high-soft); }
+.we-pin [data-value="X"] { color: var(--unknown); background-color: var(--unknown-soft); }
 .wires-editor .we-pin select {
   appearance: none; min-width: 54px; min-height: 30px; padding: 3px 25px 3px 10px;
-  font: 600 13px/1.4 ui-monospace, monospace; font-variant-numeric: tabular-nums;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%2359665e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  font: 600 13px/1.4 var(--mono); font-variant-numeric: tabular-nums;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23867f7b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
 }
-.we-pin select:enabled:hover, .we-pin select:open { border-color: var(--live); }
+.we-pin select:enabled:hover, .we-pin select:open { border-color: var(--accent); }
 .we-pin select:disabled { opacity: .5; cursor: not-allowed; }
 @supports (appearance: base-select) and selector(::picker(select)) {
   .wires-editor .we-pin select, .we-pin select::picker(select) { appearance: base-select; }
   .we-pin select::picker-icon { display: none; }
   .we-pin select::picker(select) {
-    margin-block-start: 3px; padding: 3px; border: 1px solid #b8c1b7; border-radius: 6px;
-    background: var(--paper); color: var(--ink); box-shadow: 0 4px 12px #17251e20;
+    margin-block-start: 3px; padding: 3px; border: 1px solid var(--control-line); border-radius: 6px;
+    background: var(--paper); color: var(--ink); box-shadow: 0 4px 12px #1c18171a;
   }
-  .we-pin option { min-height: 28px; padding: 3px 7px; border-radius: 3px; font: 600 13px/1.4 ui-monospace, monospace; cursor: pointer; }
-  .we-pin option:checked { color: var(--live); background: var(--mint); }
-  .we-pin option[value="X"]:checked { color: var(--unknown); background: #fcf1d7; }
-  .we-pin option:is(:hover, :focus-visible) { outline: 1px solid var(--live); outline-offset: -1px; }
+  .we-pin option { min-height: 28px; padding: 3px 7px; border-radius: 3px; font: 600 13px/1.4 var(--mono); cursor: pointer; }
+  .we-pin option:checked { color: var(--ink); background: var(--subtle); }
+  .we-pin option[value="1"]:checked { color: var(--high); background: var(--high-soft); }
+  .we-pin option[value="X"]:checked { color: var(--unknown); background: var(--unknown-soft); }
+  .we-pin option:is(:hover, :focus-visible) { outline: 1px solid var(--accent); outline-offset: -1px; }
   .we-pin option::checkmark { order: 1; margin-left: auto; }
 }
 @media (forced-colors: active) {
   .wires-editor .we-pin select { appearance: auto; background-image: none; }
 }
 
-.wires-editor .we-problem { color: #834900; background: #fff4d8; padding: 8px 10px; margin-top: 10px; white-space: pre-line; border-radius: 4px; }
-.we-wiring summary { cursor: pointer; font-weight: 600; }.we-wiring[open] summary { margin-bottom: 12px; }.we-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }.we-control label { font: 12px ui-monospace, monospace; }.we-control select { font-size: 12px; }
-.we-source pre { font: 12px/1.6 ui-monospace, monospace; overflow: auto; padding: 12px; background: #eff2eb; }.we-empty { color: var(--muted); font-size: 12px; }
-.wires-editor dialog { width: min(440px, 94vw); padding: 22px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 12px 60px #102b201f; }.wires-editor dialog::backdrop { background: #17251e66; }.wires-editor dialog p { margin: 9px 0 16px; color: var(--muted); }.wires-editor dialog label { display: grid; gap: 3px; margin: 9px 0; font-weight: 550; }.wires-editor dialog small { display: block; color: #933b1b; }.wires-editor dialog .we-actions { justify-content: flex-end; margin-top: 18px; }
+.wires-editor .we-problem { color: var(--unknown); background: var(--unknown-soft); padding: 8px 10px; margin-top: 10px; white-space: pre-line; border-radius: 4px; }
+.we-wiring summary { cursor: pointer; font-weight: 600; }.we-wiring[open] summary { margin-bottom: 12px; }.we-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }.we-control label { font: 12px var(--mono); }.we-control select { font-size: 12px; }
+.we-source pre { font: 12px/1.6 var(--mono); overflow: auto; padding: 12px; background: var(--subtle); }.we-empty { color: var(--muted); font-size: 12px; }
+.wires-editor dialog { width: min(440px, 94vw); padding: 22px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 12px 60px #100c0a30; }.wires-editor dialog::backdrop { background: #100c0a80; }.wires-editor dialog p { margin: 9px 0 16px; color: var(--muted); }.wires-editor dialog label { display: grid; gap: 3px; margin: 9px 0; font-weight: 550; }.wires-editor dialog small { display: block; color: var(--accent); }.wires-editor dialog .we-actions { justify-content: flex-end; margin-top: 18px; }
 @media (max-width: 740px) {
   .we-mast { flex-wrap: wrap; padding: 10px 12px; }.we-body { display: flex; flex-direction: column; }.we-library { padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--line); }.we-library > :is(.we-kicker,h2,.we-library-note) { display: none; }.we-palette { display: flex; overflow: auto; margin: 8px 0 0; gap: 12px; }.we-palette section { display: flex; align-items: center; gap: 4px; }.we-palette .we-group { margin: 0; }.wires-editor .we-part { width: auto; border-color: var(--line); background: var(--paper); }.we-part .we-glyph { display: none; }.we-sheet-head { padding: 12px 0; }.we-io { grid-template-columns: 1fr; gap: 10px; }.we-caption span:last-child { display: none; }.we-bench-head .we-actions { gap: 4px; }.we-actions button { padding: 5px 8px; }
 }

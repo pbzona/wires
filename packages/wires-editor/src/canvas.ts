@@ -28,20 +28,29 @@ type Gesture = {
   middle: boolean; dragged: boolean; moved?: { id: string } & Point;
 };
 
-const paper = "#faf9f5", face = "#fffefa", ink = "#23352e", muted = "#617068", accent = "#087761";
-const sans = 'system-ui, sans-serif', mono = 'ui-monospace, SFMono-Regular, Consolas, monospace';
-const styles = {
-  0: { stroke: "#859189", text: "#49574e", tint: "#eaf0e9", dash: [] },
-  1: { stroke: "#09806a", text: "#056451", tint: "#d9f1e6", dash: [] },
-  X: { stroke: "#ad7925", text: "#865b17", tint: "#f9edce", dash: [6, 4] },
-  absent: { stroke: "#a3a69a", text: "#626b63", tint: "#f0f0e9", dash: [2, 4] },
-};
+function readTheme(canvas: HTMLCanvasElement) {
+  const css = getComputedStyle(canvas);
+  const token = (name: string) => css.getPropertyValue(`--${name}`).trim();
+  const ink = token("ink"), muted = token("muted"), subtle = token("subtle"), controlLine = token("control-line");
+  const high = token("high"), unknown = token("unknown");
+  return {
+    paper: token("paper"), sheet: token("sheet"), line: token("line"), ink, muted, subtle, controlLine,
+    accent: token("accent"), accentSoft: token("accent-soft"), sans: token("sans"), mono: token("mono"),
+    signals: {
+      0: { stroke: muted, text: ink, tint: subtle, dash: [] },
+      1: { stroke: high, text: high, tint: token("high-soft"), dash: [] },
+      X: { stroke: unknown, text: unknown, tint: token("unknown-soft"), dash: [6, 4] },
+      absent: { stroke: controlLine, text: muted, tint: subtle, dash: [2, 4] },
+    },
+  };
+}
 
 /** The host owns the scene. A pointer gesture may preview a layout, but only a completed edit calls back. */
 export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("The circuit board requires a 2D canvas.");
   const g = context;
+  let theme = readTheme(canvas);
   let scene: BoardScene = { inputs: [], outputs: [], parts: [], connections: [], signals: {}, selected: null, editable: false };
   let drawing = layout(scene);
   let width = 0, height = 0, scale = 1, tx = 0, ty = 0;
@@ -115,52 +124,52 @@ export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
     return scene.signals[pin.path] ?? (driver ? scene.signals[driver] : undefined);
   }
   function drawTrace(t: Trace, active: boolean) {
-    const state = styles[value(t.from) ?? "absent"];
+    const state = theme.signals[value(t.from) ?? "absent"];
     path(t.points);
-    g.lineWidth = active ? 8 : 5; g.strokeStyle = active ? "#b3dbc9" : paper; g.stroke();
+    g.lineWidth = active ? 8 : 5; g.strokeStyle = active ? theme.accentSoft : theme.sheet; g.stroke();
     g.lineWidth = active ? 3 : 2; g.strokeStyle = state.stroke; g.setLineDash(state.dash); g.stroke(); g.setLineDash([]);
   }
   function drawPin(pin: Pin, badgeX: number) {
-    const v = value(pin), state = styles[v ?? "absent"];
+    const v = value(pin), state = theme.signals[v ?? "absent"];
     const active = pending === pin.path || (hover?.kind === "pin" && hover.pin.path === pin.path);
     const anchor = pending && drawing.pins.get(pending);
     const eligible = anchor && anchor.source !== pin.source;
-    if (active || eligible) circle(pin.x, pin.y, active ? 9 : 7.5, "#e4f4e9", active ? accent : "#91bdab", active ? 1.7 : 1);
-    circle(pin.x, pin.y, 4.3, v === 1 ? state.stroke : face, state.stroke, 2);
+    if (active || eligible) circle(pin.x, pin.y, active ? 9 : 7.5, theme.accentSoft, theme.accent, active ? 1.7 : 1);
+    circle(pin.x, pin.y, 4.3, v === 1 ? state.stroke : theme.paper, state.stroke, 2);
     if (scale < .32) return;
     box(badgeX - 9, pin.y - 8, 18, 16, 4, state.tint);
-    text(v === undefined ? "–" : String(v), badgeX, pin.y + .5, `600 11px ${mono}`, state.text, "center");
+    text(v === undefined ? "–" : String(v), badgeX, pin.y + .5, `600 11px ${theme.mono}`, state.text, "center");
   }
   function drawChip(c: Chip, view: Box) {
     const { part, x, y, w, h } = c, selected = scene.selected === part.id || gesture?.moved?.id === part.id;
     const over = hover?.kind === "chip" && hover.chip.part.id === part.id;
-    if (selected) box(x - 4, y - 4, w + 8, h + 8, 10, "#c9e6d8");
-    box(x, y + 2.5, w, h, 7, "#dee1d7");
-    box(x, y, w, h, 7, face, selected ? accent : over ? ink : "#7c887e", selected ? 2 : 1.25);
+    if (selected) box(x - 4, y - 4, w + 8, h + 8, 10, theme.accentSoft);
+    box(x, y + 2.5, w, h, 7, theme.line);
+    box(x, y, w, h, 7, theme.paper, selected ? theme.accent : over ? theme.ink : theme.controlLine, selected ? 2 : 1.25);
     if (scale < .20) return;
     // A chip pictogram, not a logic symbol: leaves can be arbitrary primitive gates.
-    box(x + 12, y + 12, 27, 27, 6, part.composite ? "#e4efe5" : "#f0efe6");
+    box(x + 12, y + 12, 27, 27, 6, part.composite ? theme.accentSoft : theme.subtle);
     const gx = x + 20, gy = y + 20;
-    g.strokeStyle = part.composite ? accent : muted; g.lineWidth = 1.5;
+    g.strokeStyle = part.composite ? theme.accent : theme.muted; g.lineWidth = 1.5;
     g.strokeRect(gx, gy, 11, 11); g.beginPath();
     for (const dy of [3, 8]) { g.moveTo(gx - 3, gy + dy); g.lineTo(gx, gy + dy); g.moveTo(gx + 11, gy + dy); g.lineTo(gx + 14, gy + dy); }
     g.stroke();
-    text(part.label, x + 49, y + 18, `650 15px ${sans}`, ink, "left", w - 73);
-    text(part.id, x + 49, y + 35, `11px ${mono}`, muted, "left", w - 60);
-    if (part.composite) text("›", x + w - 14, y + 22, `18px ${sans}`, muted, "center");
-    g.fillStyle = "#e2e5db"; g.fillRect(x + 1, y + 49, w - 2, 1);
+    text(part.label, x + 49, y + 18, `650 15px ${theme.sans}`, theme.ink, "left", w - 73);
+    text(part.id, x + 49, y + 35, `11px ${theme.mono}`, theme.muted, "left", w - 60);
+    if (part.composite) text("›", x + w - 14, y + 22, `18px ${theme.sans}`, theme.muted, "center");
+    g.fillStyle = theme.line; g.fillRect(x + 1, y + 49, w - 2, 1);
     for (const pin of c.pins) {
       if (pin.y < view.y - 9 || pin.y > view.y + view.h + 9) continue;
       const direction = pin.source ? -1 : 1;
       drawPin(pin, pin.x + direction * 19);
-      if (scale >= .32) text(pin.name, pin.x + direction * 34, pin.y, `12px ${mono}`, ink,
+      if (scale >= .32) text(pin.name, pin.x + direction * 34, pin.y, `12px ${theme.mono}`, theme.ink,
         pin.source ? "right" : "left", w / 2 - 38);
     }
   }
   function drawGrid() {
     let step = 20 * scale;
     while (step < 13) step *= 2;
-    g.fillStyle = "#d5d9ce";
+    g.fillStyle = theme.line;
     for (let x = tx % step; x < width; x += step) {
       for (let y = ty % step; y < height; y += step) g.fillRect(x - .65, y - .65, 1.3, 1.3);
     }
@@ -176,7 +185,7 @@ export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
     if (canvas.height !== h) canvas.height = h;
     if (needsFit && drawing.pins.size + drawing.chips.length > 0) center();
     g.setTransform(w / width, 0, 0, h / height, 0, 0);
-    g.fillStyle = paper; g.fillRect(0, 0, width, height); drawGrid();
+    g.fillStyle = theme.sheet; g.fillRect(0, 0, width, height); drawGrid();
     g.translate(tx, ty); g.scale(scale, scale); g.textBaseline = "middle"; g.lineCap = "round"; g.lineJoin = "round";
     const top = world({ x: -12, y: -12 }), view = { ...top, w: (width + 24) / scale, h: (height + 24) / scale };
     const focused = hover?.kind === "trace" ? hover.trace.to.path : selectedTrace;
@@ -191,19 +200,19 @@ export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
       const end = hover?.kind === "pin" && hover.pin.source !== anchor.source ? hover.pin : world(pointer);
       const mid = (anchor.x + end.x) / 2;
       path([anchor, { x: mid, y: anchor.y }, { x: mid, y: end.y }, end]);
-      g.strokeStyle = accent; g.lineWidth = 2; g.setLineDash([4, 5]); g.stroke(); g.setLineDash([]);
+      g.strokeStyle = theme.accent; g.lineWidth = 2; g.setLineDash([4, 5]); g.stroke(); g.setLineDash([]);
     }
     for (const c of drawing.chips) if (overlaps(view, c)) drawChip(c, view);
     for (const t of drawing.terminals) {
       if (!overlaps(view, t)) continue;
-      box(t.x, t.y, t.w, t.h, 6, face, "#a9b3a7");
+      box(t.x, t.y, t.w, t.h, 6, theme.paper, theme.controlLine);
       const { pin } = t, badgeX = pin.source ? t.x + t.w - 18 : t.x + 18;
       drawPin(pin, badgeX);
       if (scale >= .32) text(pin.name, pin.source ? t.x + 12 : t.x + t.w - 12, pin.y,
-        `600 13px ${mono}`, ink, pin.source ? "left" : "right", t.w - 44);
+        `600 13px ${theme.mono}`, theme.ink, pin.source ? "left" : "right", t.w - 44);
     }
     if (scale >= .32) for (const p of drawing.headings) {
-      if (overlaps(view, { x: p.x, y: p.y - 8, w: 60, h: 16 })) text(p.label, p.x, p.y, `600 10px ${mono}`, muted);
+      if (overlaps(view, { x: p.x, y: p.y - 8, w: 60, h: 16 })) text(p.label, p.x, p.y, `600 10px ${theme.mono}`, theme.muted);
     }
   }
 
@@ -307,6 +316,10 @@ export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
   const observer = new ResizeObserver(invalidate);
   observer.observe(canvas);
   window.addEventListener("resize", invalidate, options);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    theme = readTheme(canvas);
+    invalidate();
+  }, options);
   // A screen change can alter DPR without changing the canvas's CSS dimensions.
   function watchDpr() {
     window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener("change", () => {
