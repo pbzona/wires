@@ -16,6 +16,7 @@ export type BoardScene = {
 
 type Callbacks = {
   select(id: string | null): void;
+  removeSelected(): void;
   move(id: string, x: number, y: number): void;
   connect(source: string, destination: string): void;
   open(id: string): void;
@@ -250,7 +251,10 @@ export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
   }
   function click(target: Hit | null) {
     selectedTrace = null;
-    if (target?.kind === "pin") { choosePin(target.pin); return; }
+    if (target?.kind === "pin") {
+      if (scene.selected !== null) callbacks.select(null);
+      choosePin(target.pin); return;
+    }
     if (pending) { pending = null; callbacks.hint("Connection cancelled."); }
     if (target?.kind === "trace") {
       selectedTrace = target.trace.to.path;
@@ -260,9 +264,15 @@ export function createBoard(canvas: HTMLCanvasElement, callbacks: Callbacks) {
   }
 
   const listeners = new AbortController(), options = { signal: listeners.signal };
+  canvas.addEventListener("keydown", e => {
+    if (e.key !== "Delete" && e.key !== "Backspace") return;
+    if (!scene.editable || scene.selected === null || gesture || pending || e.isComposing || e.repeat ||
+        e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault(); callbacks.removeSelected();
+  }, options);
   canvas.addEventListener("pointerdown", e => {
     if (gesture || (e.button !== 0 && e.button !== 1)) return;
-    e.preventDefault(); pointer = local(e);
+    e.preventDefault(); canvas.focus({ preventScroll: true }); pointer = local(e);
     gesture = { id: e.pointerId, start: pointer, origin: { x: tx, y: ty }, hit: hit(pointer), middle: e.button === 1, dragged: false };
     canvas.setPointerCapture(e.pointerId);
   }, options);

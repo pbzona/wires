@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { simulate } from "@pbzona/wires";
 import { AND, NAND, XOR } from "@pbzona/wires/components";
 import { describe, expect, it } from "vitest";
-import { compileDraft, exampleDraft, generateSource, renamePart, validIdentifier, type Draft, type Entry } from "../src/model.js";
+import { compileDraft, exampleDraft, generateSource, removePart, renamePart, validIdentifier, type Draft, type Entry } from "../src/model.js";
 
 const components = "@pbzona/wires/components";
 const standard: Entry[] = [XOR, AND].map((definition) => ({
@@ -67,6 +67,23 @@ it("renames a part and its connected pins in the saved module", () => {
   const source = generateSource(draft, standard);
   expect(source).toContain('output("sum", sumGate.outputs.out)');
   expect(source).not.toContain("myXor");
+});
+
+it("removes only the chosen instance and its wires, not a similarly named sibling", () => {
+  const draft = exampleDraft(standard);
+  renamePart(draft, "myXor", "gate");
+  renamePart(draft, "myAnd", "gate2");
+  // One output fans out to another part and a root output, as well as feeding back.
+  draft.connections.find(w => w.destination === "gate2.inputs.a")!.source = "gate.outputs.out";
+  draft.connections.find(w => w.destination === "gate.inputs.b")!.source = "gate.outputs.out";
+  expect(removePart(draft, "gate")).toBe(true);
+  expect(draft.parts.map(p => p.id)).toEqual(["gate2"]);
+  expect(draft.connections).toEqual([
+    { source: "inputs.b", destination: "gate2.inputs.b" },
+    { source: "gate2.outputs.out", destination: "outputs.carry" },
+  ]);
+  expect(removePart(draft, "gate")).toBe(false);
+  expect(() => compileDraft(draft, standard)).toThrow(/not connected|not driven/);
 });
 
 describe("draft validation", () => {

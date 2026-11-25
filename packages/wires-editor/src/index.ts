@@ -1,6 +1,6 @@
 import { simulate, type Signal, type SimulationState } from "@pbzona/wires";
 import { createBoard, type BoardScene } from "./canvas.js";
-import { compileDraft, exampleDraft, generateSource, renamePart, validIdentifier, type Draft, type Entry } from "./model.js";
+import { compileDraft, exampleDraft, generateSource, removePart, renamePart, validIdentifier, type Draft, type Entry } from "./model.js";
 import { button, createPanel, text } from "./panel.js";
 import { makeScene, type Inspection } from "./scene.js";
 
@@ -41,7 +41,10 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
   let dialogMode: "new" | "edit" | "save" = "new";
   let destroyed = false;
 
-  const board = createBoard(el<HTMLCanvasElement>("canvas"), {
+  const canvas = el<HTMLCanvasElement>("canvas");
+  const removeBtn = btn("removeBtn");
+  const board = createBoard(canvas, {
+    removeSelected,
     select(id) { selected = id; updateBoard(); renderInspector(); },
     move(id, x, y) {
       const part = draft.parts.find(p => p.id === id);
@@ -57,6 +60,9 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
   function updateBoard() {
     scene = makeScene(draft, library, views.at(-1), selected, signals);
     board.update(scene);
+    removeBtn.hidden = !scene.editable;
+    removeBtn.disabled = !scene.editable || selected === null;
+    removeBtn.title = selected === null ? "Select a chip on the canvas to remove it" : `Remove ${selected} and its connected wires`;
     const n = scene.parts.length, w = scene.connections.length;
     el("count").textContent = `${n} ${n === 1 ? "part" : "parts"} · ${w} ${w === 1 ? "wire" : "wires"}`;
   }
@@ -142,6 +148,14 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
     hint(source ? `${destination} ← ${source}` : `Disconnected ${destination}.`);
   }
 
+  function removeSelected() {
+    if (views.length || selected === null || !removePart(draft, selected)) return;
+    const id = selected;
+    selected = null; rebuild(); board.fit();
+    hint(`Removed ${id} from the circuit.`);
+    canvas.focus({ preventScroll: true });
+  }
+
   function addPart(entry: Entry) {
     if (views.length) return;
     const name = entry.definition.name;
@@ -217,12 +231,7 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
     row.append(pick);
     const part = scene.parts.find(p => p.id === selected);
     if (part?.composite) row.append(button("Look inside", () => inspectPart(part.id)));
-    if (part && !views.length) row.append(button("Remove part", () => {
-      draft.parts = draft.parts.filter(p => p.id !== part.id);
-      const prefix = part.id + ".";
-      draft.connections = draft.connections.filter(w => !w.source.startsWith(prefix) && !w.destination.startsWith(prefix));
-      selected = null; rebuild(); board.fit();
-    }));
+    if (part && !views.length) row.append(button("Remove part", removeSelected));
     box.append(row);
     if (part && !views.length) {
       const field = document.createElement("input"); field.value = part.id; field.setAttribute("aria-label", "Instance name");
@@ -308,6 +317,7 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
   btn("newBtn").onclick = () => showDialog("new"); btn("editBtn").onclick = () => showDialog("edit");
   btn("saveBtn").onclick = () => showDialog("save"); btn("cancelBtn").onclick = () => dialog.close();
   btn("stepBtn").onclick = () => advance("step"); btn("runBtn").onclick = () => advance("run");
+  removeBtn.onclick = removeSelected;
   btn("inBtn").onclick = () => board.zoom(1.25); btn("outBtn").onclick = () => board.zoom(0.8); btn("fitBtn").onclick = () => board.fit();
   btn("sourceBtn").onclick = () => {
     const drawer = el("drawer"); drawer.hidden = !drawer.hidden;

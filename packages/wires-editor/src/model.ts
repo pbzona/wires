@@ -28,6 +28,16 @@ export function validIdentifier(name: string): boolean {
   return typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !reserved.has(name);
 }
 
+/** Remove one instance and its incoming and outgoing wires from this draft. */
+export function removePart(draft: Draft, id: string): boolean {
+  const index = draft.parts.findIndex(part => part.id === id);
+  if (index === -1) return false;
+  draft.parts.splice(index, 1);
+  const prefix = `${id}.`;
+  draft.connections = draft.connections.filter(wire => !wire.source.startsWith(prefix) && !wire.destination.startsWith(prefix));
+  return true;
+}
+
 /** Rename a placed instance and its local endpoints without touching the chip definition. */
 export function renamePart(draft: Draft, oldId: string, id: string): void {
   const part = draft.parts.find(p => p.id === oldId);

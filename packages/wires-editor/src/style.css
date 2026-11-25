@@ -50,9 +50,9 @@
 .we-part span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.we-part span:last-child { margin-left: auto; color: var(--muted); }.we-part .we-glyph { color: var(--accent); font-size: 15px; }
 .we-library-note { display: block; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }.wires-editor code { color: var(--ink); font-family: var(--mono); }
 .we-work { min-width: 0; padding: 0 clamp(12px,2.5vw,40px) 32px; }.we-sheet-head { padding: 21px 0 16px; }
-.we-board-head { min-height: 38px; padding: 5px 10px; border: 1px solid var(--line); border-bottom: 0; background: var(--paper); border-radius: 7px 7px 0 0; }
+.we-board-head { flex-wrap: wrap; min-height: 38px; padding: 5px 10px; border: 1px solid var(--line); border-bottom: 0; background: var(--paper); border-radius: 7px 7px 0 0; }
 .we-board-head nav { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font: 12px var(--mono); }.we-board-head nav span { color: var(--muted); }
-.we-board-head button { font-size: 12px; padding: 2px 8px; }.we-board-head nav button { border: 0; color: var(--accent); }.we-zoom { gap: 4px; }
+.we-board-head button { font-size: 12px; padding: 2px 8px; }.we-board-head nav button { border: 0; color: var(--accent); }.we-zoom { gap: 4px; margin-left: auto; }
 .we-sheet { height: clamp(270px, 45dvh, 640px); border: 1px solid var(--line); position: relative; overflow: hidden; background: var(--sheet); }
 .we-sheet canvas { display: block; width: 100%; height: 100%; touch-action: none; }.we-sheet canvas:focus-visible { outline-offset: -3px; }
 .we-caption { border: 1px solid var(--line); border-top: 0; border-radius: 0 0 7px 7px; background: var(--paper); min-height: 30px; padding: 6px 10px; font: 400 12px/1.5 var(--sans); }.we-caption span:last-child { white-space: nowrap; }

@@ -19,6 +19,8 @@ The opening sheet has inputs `a` and `b`. They feed an XOR for `sum` and an AND 
 3. Run the circuit with `a = 0`. Check that `out` settles to `1`. Open **Source** to see the equivalent `circuit()` definition.
 4. Select **Save as chip**. The local dev server creates `chips/MyNot.ts`; `MyNot` now appears under **Mine**. If the file exists, choose a new name. A static build offers **Copy TypeScript** instead of writing to disk.
 
+To remove a chip, click its name on the canvas, then choose **Remove chip** above the sheet or press **Delete** or **Backspace**. This also removes the wires connected to that instance. The chip stays in the library.
+
 ## Add a chip by hand
 
 The personal library lives in `chips/`, not `src/`. For example, save the following as `chips/BothLow.ts`:
