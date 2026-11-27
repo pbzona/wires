@@ -4,3 +4,4 @@ dist
 .snippets
 *.tsbuildinfo
 .DS_Store
+/docs/plans/
