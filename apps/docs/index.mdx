@@ -6,6 +6,8 @@ icon: "zap"
 
 `wires` is a TypeScript toolkit for **learning** digital logic by building it yourself. You start with one primitive gate and compose it into inverters, adders, multiplexers and memory, writing every circuit by hand in code that stays readable. Then you simulate it and look inside to see why it behaves the way it does.
 
+[Nand to Tetris](https://www.nand2tetris.org/) is the course that inspired `wires`. As you work through its hardware projects, you can build the same chips here in TypeScript and watch how they work, down to a carry bit moving from one adder to the next.
+
 ```ts
 import { circuit, simulate } from "@pbzona/wires";
 import { NAND } from "@pbzona/wires/components";
