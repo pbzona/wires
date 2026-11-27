@@ -69,7 +69,9 @@ dependencies.
 type Signal = 0 | 1 | "X"; // "X" means unknown or uninitialized
 ```
 
-Every signal starts as `X`. Logic compares values with strict equality.
+Every signal starts as `"X"`. You can write `"X"` directly or use
+`import { X } from "@pbzona/wires"` if you prefer a named constant.
+They are the same value, so `X === "X"`.
 
 ## Defining a primitive gate
 

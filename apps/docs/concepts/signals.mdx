@@ -34,17 +34,17 @@ The simulator never resolves `"X"` to `0` or `1` on its own. A latch that has ne
 
 ## Numbers, not booleans
 
-Signals are the numbers `0` and `1`, not JavaScript booleans, and the library never relies on truthiness. Compare with `===`:
+Compare signals with `===`, not JavaScript truthiness. This gate returns the imported `X` constant when its output is unknown. Returning the literal `"X"` works identically and needs no import.
 
 ```ts
-import { gate } from "@pbzona/wires";
+import { gate, X } from "@pbzona/wires";
 
 const AND3 = gate({
   name: "AND3",
   inputs: ["a", "b", "c"],
   outputs: ["out"],
   evaluate: ({ a, b, c }) => ({
-    out: a === 0 || b === 0 || c === 0 ? 0 : a === 1 && b === 1 && c === 1 ? 1 : "X",
+    out: a === 0 || b === 0 || c === 0 ? 0 : a === 1 && b === 1 && c === 1 ? 1 : X,
   }),
 });
 ```
