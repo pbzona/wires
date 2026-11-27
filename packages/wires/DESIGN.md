@@ -29,6 +29,14 @@ with a runtime check. Passing a not-yet-defined (`undefined`) component to
 | child input (`g.inputs.a`) | input | sink |
 | child output (`g.outputs.out`) | output | source |
 
+**Bit groups.** A circuit declaration such as `bits("d", 8)` expands to `d0` through
+`d7` before the builder runs. The definition lists those scalar pins in order
+and records their group in `inputGroups` or `outputGroups`. In a builder,
+`inputs.d` is a frozen array of the same handles as `inputs.d0` through
+`inputs.d7`. Assigning a group checks its width and each connection before
+recording any of them. There is no group-valued signal in the netlist or
+simulator, and `gate()` declarations still name individual pins.
+
 **Wiring API.** The builder exposes `inputs`, `add`, `feed` and `output`. Every
 call reads *destination ← source*, like an assignment:
 

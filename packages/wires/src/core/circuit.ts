@@ -3,32 +3,35 @@ import {
   type CircuitScope,
   type CircuitStructure,
   type ComponentDefinition,
+  type ComponentDescription,
   type ComponentInstance,
   type ConnectionRecord,
   describeAt,
   type Direction,
   type InstanceRecord,
   type Port,
+  type PortHandles,
   type PortRecord,
   type PortRole,
   registerDefinition,
   requireInternals,
   type SinkPort,
   type SourcePort,
-  validatePortLists,
 } from "./component.js";
+import { validatePortLists, type PortDeclaration, type PinName, type GroupName, type GroupMembers } from "./port-lists.js";
 import { CircuitError } from "./errors.js";
 import { describeValue } from "./signal.js";
 
 /** Name and external ports of a composite circuit. */
-export type CircuitSpec<I extends readonly string[], O extends readonly string[]> = {
+export type CircuitSpec<I extends readonly PortDeclaration[], O extends readonly PortDeclaration[]> = {
   readonly name: string;
   readonly inputs: I;
   readonly outputs: O;
 };
 
 /** What feeds each input of a component being added. Inputs left out must be fed later with `feed()`. */
-export type InputWiring<I extends string> = { readonly [K in I]?: SourcePort };
+export type InputWiring<I extends string, IG extends string = never> =
+  { readonly [K in I]?: SourcePort } & { readonly [K in IG]?: readonly SourcePort[] };
 
 /**
  * The context passed to a circuit's builder callback.
@@ -37,29 +40,30 @@ export type InputWiring<I extends string> = { readonly [K in I]?: SourcePort };
  * `add(NOT, "not", { a: nand.outputs.out })`, `feed(top.inputs.b, bottom.outputs.out)`,
  * `output("out", not.outputs.out)`.
  */
-export type CircuitBuilder<I extends string, O extends string> = {
+export type CircuitBuilder<I extends string, O extends string, IG extends string = never, OG extends string = never> = {
   /** The circuit's own inputs. Use them as sources for the parts you add. */
-  readonly inputs: { readonly [K in I]: Port<K, "input", "source"> };
+  readonly inputs: PortHandles<I, IG, "input", "source">;
   /**
    * Adds a component (primitive or composite) and wires its inputs. Without a
    * name, a deterministic one of the form `<Definition>#<n>` is generated.
    */
-  add<CI extends string, CO extends string>(
-    definition: ComponentDefinition<CI, CO>,
-    inputs?: InputWiring<CI>,
-  ): ComponentInstance<CI, CO>;
-  add<CI extends string, CO extends string>(
-    definition: ComponentDefinition<CI, CO>,
+  add<CI extends string, CO extends string, CIG extends string = never, COG extends string = never>(
+    definition: ComponentDefinition<CI, CO, CIG, COG>,
+    inputs?: NoInfer<InputWiring<CI, CIG>>,
+  ): ComponentInstance<CI, CO, CIG, COG>;
+  add<CI extends string, CO extends string, CIG extends string = never, COG extends string = never>(
+    definition: ComponentDefinition<CI, CO, CIG, COG>,
     name: string,
-    inputs?: InputWiring<CI>,
-  ): ComponentInstance<CI, CO>;
+    inputs?: NoInfer<InputWiring<CI, CIG>>,
+  ): ComponentInstance<CI, CO, CIG, COG>;
   /**
    * Feeds a component input that wasn't wired when the component was added.
    * This is how feedback loops are built: the source can come from a component
    * added later.
    */
   feed(input: SinkPort, source: SourcePort): void;
-  /** Drives one of the circuit's own outputs from a source. */
+  /** Drives a whole group in index order, or one scalar output. */
+  output(group: OG, sources: readonly SourcePort[]): void;
   output(name: O, source: SourcePort): void;
 };
 
@@ -81,25 +85,27 @@ const RESERVED_INSTANCE_NAMES = new Set(["inputs", "outputs"]);
  * });
  * ```
  */
-export function circuit<const I extends readonly string[], const O extends readonly string[]>(
+export function circuit<const I extends readonly PortDeclaration[], const O extends readonly PortDeclaration[]>(
   spec: CircuitSpec<I, O>,
-  build: (builder: CircuitBuilder<I[number], O[number]>) => void,
-): ComponentDefinition<I[number], O[number]> {
+  build: (builder: CircuitBuilder<PinName<I>, PinName<O>, GroupName<I>, GroupName<O>>) => void,
+): ComponentDefinition<PinName<I>, PinName<O>, GroupName<I>, GroupName<O>> {
   if (typeof spec !== "object" || spec === null) {
     throw new CircuitError("circuit() expects a specification object");
   }
   assertName(spec.name, "circuit name");
-  const { inputs, outputs } = validatePortLists(spec.name, spec.inputs, spec.outputs);
+  const { inputs, outputs } = validatePortLists(spec.name, spec.inputs, spec.outputs, "composite");
   if (typeof build !== "function") {
     throw new CircuitError("circuit() expects a builder function", spec.name);
   }
 
-  const definition: ComponentDefinition<I[number], O[number]> = Object.freeze({
+  const definition = Object.freeze({
     kind: "composite" as const,
     name: spec.name,
-    inputs: inputs as readonly I[number][],
-    outputs: outputs as readonly O[number][],
-    describe: () => describeAt(definition, "root", "root", null),
+    inputs: inputs.names,
+    outputs: outputs.names,
+    inputGroups: inputs.groups,
+    outputGroups: outputs.groups,
+    describe: (): ComponentDescription => describeAt(definition, "root", "root", null),
   });
 
   const structure = runBuilder(definition, build as (builder: CircuitBuilder<string, string>) => void);
@@ -149,9 +155,17 @@ function runBuilder(
   const portsOf = <D extends Direction, R extends PortRole>(
     owner: ComponentInstance | CircuitScope,
     names: readonly string[],
+    groups: GroupMembers<string, string>,
     direction: D,
     role: R,
-  ) => Object.freeze(Object.fromEntries(names.map((n) => [n, makePort(owner, n, direction, role)])));
+  ) => {
+    const pins = Object.fromEntries(names.map((n) => [n, makePort(owner, n, direction, role)]));
+    for (const [name, members] of Object.entries(groups)) {
+      // A group is a view, not another pin: iteration still visits each port exactly once.
+      Object.defineProperty(pins, name, { value: Object.freeze(members.map((pin) => pins[pin]!)) });
+    }
+    return Object.freeze(pins);
+  };
 
   /** Port label relative to the circuit being built, e.g. `inputs.a` or `nand.outputs.out`. */
   const label = (port: Port): string => (port.owner.kind === "scope" ? port.id : `${port.owner.name}.${port.id}`);
@@ -190,18 +204,31 @@ function runBuilder(
     return port;
   };
 
-  /** Records the connection `destination ← source`, enforcing one driver per destination. */
-  const connect = (destination: Port, source: Port): void => {
-    const existing = drivers.get(destination);
-    if (existing !== undefined) {
-      fail(
-        `${label(destination)} has multiple drivers (${label(existing.source)} and ${label(source)}); ` +
-          `each input or output may have only one driver`,
-      );
+  /** Expand a grouped assignment into the very same connections as individual calls. */
+  const wiresFor = (target: Port | readonly Port[], value: unknown, where: string): Connection[] => {
+    if ("kind" in target) return [{ destination: target, source: checkSource(value, where) }];
+    if (!Array.isArray(value)) return fail(`${where} expects an array of ${target.length} source ports`);
+    if (value.length !== target.length) return fail(`${where} expects ${target.length} source ports, got ${value.length}`);
+    return target.map((destination, i) => ({ destination, source: checkSource(value[i], label(destination)) }));
+  };
+
+  /** Check the entire assignment before recording it, including overlapping flat and group names. */
+  const connect = (wires: readonly Connection[]): void => {
+    const batch = new Map<Port, Connection>();
+    for (const wire of wires) {
+      const existing = drivers.get(wire.destination) ?? batch.get(wire.destination);
+      if (existing !== undefined) {
+        fail(
+          `${label(wire.destination)} has multiple drivers (${label(existing.source)} and ${label(wire.source)}); ` +
+            `each input or output may have only one driver`,
+        );
+      }
+      batch.set(wire.destination, wire);
     }
-    const connection = Object.freeze({ source, destination });
-    drivers.set(destination, connection);
-    connections.push(connection);
+    for (const wire of wires) {
+      drivers.set(wire.destination, wire);
+      connections.push(wire);
+    }
   };
 
   const add = (child: ComponentDefinition, nameOrInputs?: unknown, maybeInputs?: unknown): ComponentInstance => {
@@ -234,30 +261,31 @@ function runBuilder(
       inputs: ComponentInstance["inputs"];
       outputs: ComponentInstance["outputs"];
     };
-    handle.inputs = portsOf(handle, child.inputs, "input", "sink");
-    handle.outputs = portsOf(handle, child.outputs, "output", "source");
+    handle.inputs = portsOf(handle, child.inputs, child.inputGroups, "input", "sink");
+    handle.outputs = portsOf(handle, child.outputs, child.outputGroups, "output", "source");
     const instance = Object.freeze(handle) as ComponentInstance;
 
-    const sources: Array<[string, Port]> = [];
+    const wires: Connection[] = [];
     if (inputs !== undefined) {
       if (typeof inputs !== "object" || inputs === null) {
         fail(`add(${child.name}, "${name}", ...) expects its inputs as an object like { a: inputs.a }`);
       }
       const given = inputs as Record<string, unknown>;
       for (const key of Object.keys(given)) {
-        if (!child.inputs.includes(key)) {
+        if (!Object.hasOwn(instance.inputs, key)) {
           fail(`${child.name} has no input "${key}" (its inputs are ${child.inputs.join(", ") || "none"})`);
         }
       }
-      for (const key of child.inputs) {
-        if (Object.hasOwn(given, key)) sources.push([key, checkSource(given[key], `${name}.inputs.${key}`)]);
+      for (const key of [...child.inputs, ...Object.keys(child.inputGroups)]) {
+        if (!Object.hasOwn(given, key)) continue;
+        for (const wire of wiresFor(instance.inputs[key]!, given[key], `${name}.inputs.${key}`)) wires.push(wire);
       }
     }
     // A wiring getter can itself add parts. Check the name after reading all the sources.
     if (instancesByName.has(name)) fail(`Duplicate component instance name "${name}"`);
+    connect(wires);
     instancesByName.set(name, instance);
     instanceRecords.push(Object.freeze({ name, definition: child }));
-    for (const [key, source] of sources) connect(instance.inputs[key]!, source);
     return instance;
   };
 
@@ -270,20 +298,20 @@ function runBuilder(
           (destination.owner.kind === "scope" ? "" : " (use output() for this circuit's outputs)"),
       );
     }
-    connect(destination, checkSource(source, label(destination)));
+    connect([{ destination, source: checkSource(source, label(destination)) }]);
   };
 
-  const ownOutputs = portsOf(scope, definition.outputs, "output", "sink") as Record<string, Port>;
-  const output = (name: string, source: SourcePort): void => {
+  const ownOutputs = portsOf(scope, definition.outputs, definition.outputGroups, "output", "sink");
+  const output = (name: string, source: unknown): void => {
     if (sealed) fail("output() called after the circuit builder finished");
     if (typeof name !== "string" || !Object.hasOwn(ownOutputs, name)) {
       fail(`"${String(name)}" is not an output of ${circuitName} (its outputs are ${definition.outputs.join(", ") || "none"})`);
     }
-    connect(ownOutputs[name]!, checkSource(source, `outputs.${name}`));
+    connect(wiresFor(ownOutputs[name]!, source, `outputs.${name}`));
   };
 
   const builder: CircuitBuilder<string, string> = Object.freeze({
-    inputs: portsOf(scope, definition.inputs, "input", "source"),
+    inputs: portsOf(scope, definition.inputs, definition.inputGroups, "input", "source"),
     add: add as CircuitBuilder<string, string>["add"],
     feed,
     output,

@@ -4,8 +4,8 @@ import {
   describeAt,
   type Evaluator,
   registerDefinition,
-  validatePortLists,
 } from "./component.js";
+import { validatePortLists } from "./port-lists.js";
 import { CircuitError } from "./errors.js";
 import type { Signal } from "./signal.js";
 
@@ -40,7 +40,7 @@ export function gate<const I extends readonly string[], const O extends readonly
     throw new CircuitError("gate() expects a specification object");
   }
   assertName(spec.name, "gate name");
-  const { inputs, outputs } = validatePortLists(spec.name, spec.inputs, spec.outputs);
+  const { inputs, outputs } = validatePortLists(spec.name, spec.inputs, spec.outputs, "primitive");
   if (typeof spec.evaluate !== "function") {
     throw new CircuitError("evaluate must be a function", spec.name);
   }
@@ -48,8 +48,10 @@ export function gate<const I extends readonly string[], const O extends readonly
   const definition: ComponentDefinition<I[number], O[number]> = Object.freeze({
     kind: "primitive" as const,
     name: spec.name,
-    inputs: inputs as readonly I[number][],
-    outputs: outputs as readonly O[number][],
+    inputs: inputs.names,
+    outputs: outputs.names,
+    inputGroups: inputs.groups,
+    outputGroups: outputs.groups,
     describe: () => describeAt(definition, "root", "root", null),
   });
   registerDefinition(definition, { kind: "primitive", evaluate: spec.evaluate as Evaluator });

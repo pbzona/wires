@@ -1,4 +1,5 @@
 import { CircuitError } from "./errors.js";
+import type { GroupMembers } from "./port-lists.js";
 import { describeValue, type Signal } from "./signal.js";
 
 /** Direction of a port as seen from outside its component. */
@@ -44,23 +45,36 @@ export type SourcePort = Port<string, Direction, "source">;
 export type SinkPort = Port<string, Direction, "sink">;
 
 /** Reusable, immutable definition of a primitive gate or a composite circuit. */
-export interface ComponentDefinition<I extends string = string, O extends string = string> {
+export interface ComponentDefinition<
+  I extends string = string, O extends string = string,
+  IG extends string = never, OG extends string = never,
+> {
   readonly kind: "primitive" | "composite";
   readonly name: string;
   readonly inputs: readonly I[];
   readonly outputs: readonly O[];
+  /** Named groups of pins, in bit order. Empty for scalar-only definitions. */
+  readonly inputGroups: GroupMembers<IG, I>;
+  readonly outputGroups: GroupMembers<OG, O>;
   /** Serializable topology of this definition, with hierarchical ids rooted at `"root"`. */
   describe(): ComponentDescription;
 }
 
+/** Flat pins and the named views over those same pins inside a circuit builder. */
+export type PortHandles<P extends string, G extends string, D extends Direction, R extends PortRole> =
+  { readonly [K in P]: Port<K, D, R> } & { readonly [K in G]: readonly Port<`${K}${number}`, D, R>[] };
+
 /** One occurrence of a definition inside a circuit. */
-export interface ComponentInstance<I extends string = string, O extends string = string> {
+export interface ComponentInstance<
+  I extends string = string, O extends string = string,
+  IG extends string = never, OG extends string = never,
+> {
   readonly kind: "instance";
   /** Name of the instance, unique within its containing circuit. */
   readonly name: string;
-  readonly definition: ComponentDefinition<I, O>;
-  readonly inputs: { readonly [K in I]: Port<K, "input", "sink"> };
-  readonly outputs: { readonly [K in O]: Port<K, "output", "source"> };
+  readonly definition: ComponentDefinition<I, O, IG, OG>;
+  readonly inputs: PortHandles<I, IG, "input", "sink">;
+  readonly outputs: PortHandles<O, OG, "output", "source">;
 }
 
 /** Serializable description of a port. */
@@ -169,29 +183,6 @@ export function assertName(value: unknown, what: string, path?: string): asserts
       path,
     );
   }
-}
-
-/** Validates the input/output name lists of a definition spec. */
-export function validatePortLists(
-  name: string,
-  inputs: unknown,
-  outputs: unknown,
-): { inputs: readonly string[]; outputs: readonly string[] } {
-  const seen = new Set<string>();
-  const check = (list: unknown, what: "inputs" | "outputs"): readonly string[] => {
-    if (!Array.isArray(list)) {
-      throw new CircuitError(`${what} must be an array of port names`, name);
-    }
-    for (const port of list) {
-      assertName(port, what === "inputs" ? "input port name" : "output port name", name);
-      if (seen.has(port)) {
-        throw new CircuitError(`Duplicate port name "${port}"`, name);
-      }
-      seen.add(port);
-    }
-    return Object.freeze([...list] as string[]);
-  };
-  return { inputs: check(inputs, "inputs"), outputs: check(outputs, "outputs") };
 }
 
 /** Hierarchical id of a port belonging to the instance at `instancePath`. */

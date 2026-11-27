@@ -13,6 +13,7 @@ export type {
   SinkPort,
   SourcePort,
 } from "./core/component.js";
+export { bits, type BitGroup } from "./core/port-lists.js";
 export { gate, type GateSpec } from "./core/gate.js";
 export { circuit, type CircuitBuilder, type CircuitSpec, type InputWiring } from "./core/circuit.js";
 export { elaborate, type Ancestor, type GateInfo, type Netlist, type WireInfo } from "./core/elaborate.js";
