@@ -7,7 +7,7 @@ npm install
 npm run dev
 ```
 
-Open the **local** URL Vite prints. The canvas starts with `MyHalfAdder`. Set both inputs to `1` and click **Run**: once settled, `sum` is `0` and `carry` is `1`. Try a different input and click **Step** to watch the gates propagate the change one tick at a time.
+Open the **local** URL Vite prints. The canvas starts with `MyHalfAdder`. Set both inputs to `1` and click **Run to stable**: once settled, `sum` is `0` and `carry` is `1`. Try a different input and click **Step** to watch the gates propagate the change one tick at a time.
 
 ## Where circuits live
 
