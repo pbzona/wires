@@ -63,7 +63,11 @@ export function saveChip(root: string) {
       return reply(400, "Invalid JSON request.");
     }
     const { name, source } = payload ?? {};
-    if (!isChipName(name) || typeof source !== "string" || !exportsChip(name, source)) {
+    if (!isChipName(name)) {
+      return reply(400, "Use a chip name that is also a portable file name: an identifier of at most 128 characters, " +
+        "not a reserved device name such as Con, Aux or Nul.");
+    }
+    if (typeof source !== "string" || !exportsChip(name, source)) {
       return reply(400, "Use a new chip name matching the generated TypeScript export.");
     }
     try {

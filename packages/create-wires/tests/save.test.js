@@ -44,6 +44,12 @@ test("rejects paths, reserved names and source without the exact matching export
     const response = await post({ name, source: `export const ${name} = 1;` });
     assert.equal(response.status, 400, name);
   }
+  // A valid identifier that isn't a portable file name says so, rather than blaming the source.
+  for (const name of ["Aux", "Con", "a".repeat(129)]) {
+    const response = await post({ name, source: `export const ${name} = 1;` });
+    assert.equal(response.status, 400, name);
+    assert.match(await response.text(), /portable file name/, name);
+  }
   for (const source of ["// export const NewChip = 1;", 'export const Other = "export const NewChip = 1;";',
     "const NewChip = 1;", "export const NewChipSuffix = 1;", "export const NewChip = ;"]) {
     assert.equal((await post({ name: valid.name, source })).status, 400, source);
