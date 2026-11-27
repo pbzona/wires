@@ -29,6 +29,8 @@ console.log(d.connections[0]);
 
 Each node has an `id` (its hierarchical path), its `name`, the `parent` id, the `definition` name, its `kind`, its `ports`, child `components` and internal `connections`. Primitives have empty `components` and `connections`. See [`ComponentDescription`](/reference/types#componentdescription).
 
+Even when a builder wires a [named group](/reference/circuit#named-bit-groups), these views describe individual pins and connections. In the [eight-bit register](/guides/eight-bit-register), the input pin is `root.inputs.d3`, not `root.inputs.d[3]`; `inspect().signals["root.outputs.q3"]` gives the current value of one output. There is no `root.outputs.q` signal.
+
 ## Wires
 
 A **wire** is one driver plus every port connected to it. The driver is either one of the circuit's inputs or a gate's output. Connections add no delay, so every port on a wire always has the same value.

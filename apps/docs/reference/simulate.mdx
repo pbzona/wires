@@ -13,6 +13,8 @@ function simulate<I extends string, O extends string>(
 
 Elaborates the definition (cached per definition) and returns the first state of a new simulation: tick 0, every signal `"X"`, and every gate due for its first evaluation.
 
+If a circuit declares [bit groups](/reference/circuit#named-bit-groups), use its flat pin names here. For an eight-bit register, `set({ d0: 1, d7: 0 })` queues two individual inputs, `read("q0")` returns one signal, and `readAll()` has keys `q0` through `q7`. Neither `set()` nor `read()` takes a group name.
+
 ## Options
 
 Options are fixed when the simulation starts and carry over to every later state.

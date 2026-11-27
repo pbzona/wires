@@ -56,8 +56,8 @@ There are two entry points:
 
 | Import                     | Contents                                                                                                                    |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `@pbzona/wires`            | the engine: `gate`, `circuit`, `simulate`, `elaborate`, errors, types                                                       |
-| `@pbzona/wires/components` | the standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch` |
+| `@pbzona/wires`            | the engine: `gate`, `circuit`, `bits`, `simulate`, `elaborate`, errors, types |
+| `@pbzona/wires/components` | the standard library: `NAND`, `NOT`, `AND`, `OR`, `NOR`, `XOR`, `XNOR`, `HalfAdder`, `FullAdder`, `Mux`, `Demux`, `SRLatch`, `RegisterBit` |
 
 Requires Node.js 24, or 26 and later (no end-of-life releases), Bun, or any
 modern browser or bundler. The package is ESM only and has no runtime
@@ -136,8 +136,9 @@ bottom. Every wiring call reads **destination ← source**, like an assignment.
 
 Sources are the circuit's inputs and the outputs of parts it added. One source
 can feed any number of inputs, but each input has exactly one source. Using a
-part's input as a source, or naming a port that doesn't exist, is a
-compile-time error, and is rejected again at runtime.
+part's input as a source, or misspelling a declared name, is a compile-time
+error. The builder also checks connections at runtime, including the bounds
+of numbered pins.
 
 Feedback needs `feed`, because a part's input can't be wired to something that
 hasn't been added yet:
@@ -165,6 +166,20 @@ The builder runs immediately, inside `circuit()`, and the result is validated
 before `circuit()` returns, so mistakes are reported where you made them. A
 circuit can only contain components defined before it, so it can never
 contain itself.
+
+### Wiring a group of bits
+
+In `circuit()` (not `gate()`), `bits("d", 8)` declares individual pins `d0`
+through `d7`. Mix groups with named scalars: `[bits("d", 8), "clock", "load"]`.
+In the builder, `inputs.d[3]` and `inputs.d3` refer to the same source. A parent
+can connect one register to another with `{ d: first.outputs.q, clock, load }`;
+`output("q", sources)` publishes a whole group in index order. Both operations
+require one source per bit. Group names and expanded pin names cannot collide.
+
+The group is not an integer-valued signal. Simulation and inspection still use
+`set({ d3: 1 })`, `read("q3")` and `inspect().signals["root.outputs.q3"]`.
+Each bit has its own signal and gate delays. See the
+[eight-bit register example](https://github.com/pbzona/wires/blob/main/packages/wires/examples/Register8.ts).
 
 ## A four-bit adder
 
@@ -373,6 +388,7 @@ Everything except `NAND` is built from NAND gates through the public
 | `Mux`                             | a, b, select  | out           | `select = 0` → a, `1` → b      |
 | `Demux`                           | in, select    | a, b          | the unselected output is 0     |
 | `SRLatch`                         | setN, resetN  | q, qBar       | active-low cross-coupled NANDs |
+| `RegisterBit`                     | d, clock, load | q            | rising edge, active-high load  |
 
 Because these are NAND networks, they inherit NAND's pessimistic handling of
 `X`. For example, `Mux` gives `X` when `select` is `X`, even if `a === b`.
@@ -387,6 +403,7 @@ node examples/01-gates.ts          # NAND truth table, including X
 node examples/02-composition.ts    # NOT/AND from NAND, inspect and trace
 node examples/03-four-bit-adder.ts # ripple-carry adder
 node examples/04-sr-latch.ts       # one bit of memory
+node examples/05-register.ts       # two eight-bit registers on one clock
 # or all at once:
 pnpm examples
 ```

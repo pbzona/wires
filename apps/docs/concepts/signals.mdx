@@ -51,6 +51,31 @@ const AND3 = gate({
 
 Passing `true`, `2` or `"x"` where a signal is expected fails to type-check, and throws a `SimulationError` at runtime.
 
+## Groups are not signals
+
+In a circuit declaration, [`bits("d", 8)`](/reference/circuit#named-bit-groups) names eight pins, not one integer-valued signal. Setting `d0` to `1` tells you nothing about `d1`: it can still be `"X"`.
+
+Even two bits set on the same tick can reach their outputs at different times. Here `a` goes straight to `q0` while `b` passes through an inverter on its way to `q1`:
+
+```ts
+import { bits, circuit, simulate } from "@pbzona/wires";
+import { NOT } from "@pbzona/wires/components";
+
+const InvertOneBit = circuit(
+  { name: "InvertOneBit", inputs: ["a", "b"], outputs: [bits("q", 2)] },
+  ({ inputs, add, output }) => {
+    const invert = add(NOT, "invert", { a: inputs.b });
+    output("q", [inputs.a, invert.outputs.out]);
+  },
+);
+
+const first = simulate(InvertOneBit).set({ a: 1, b: 1 }).step();
+console.log(first.readAll()); // { q0: 1, q1: "X" }
+console.log(first.step().readAll()); // { q0: 1, q1: 0 }
+```
+
+Grouping the outputs didn't add a delay to the first bit or skip the gate delay on the second.
+
 ## Helpers
 
 `wires` exports a few small helpers for working with signals:

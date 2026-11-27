@@ -24,6 +24,7 @@ import { FullAdder, Mux, NAND, SRLatch, XOR } from "@pbzona/wires/components";
 | `Mux` | a, b, select | out | 4 | [Routing](/library/routing) |
 | `Demux` | in, select | a, b | 5 | [Routing](/library/routing) |
 | `SRLatch` | setN, resetN | q, qBar | 2 | [Memory](/library/memory) |
+| `RegisterBit` | d, clock, load | q | 15 | [Memory](/library/memory#registerbit) |
 
 ## Unknown values
 
@@ -48,6 +49,6 @@ The standard components are ordinary definitions. Add them to your own circuits,
     Multiplexer and demultiplexer
   </Card>
   <Card title="Memory" icon="memory-stick" href="/library/memory">
-    NAND SR latch
+    NAND SR latch and one-bit register
   </Card>
 </CardGroup>

@@ -47,7 +47,8 @@
               "guides/running-simulations",
               "guides/sequential-logic",
               "guides/introspection",
-              "guides/four-bit-adder"
+              "guides/four-bit-adder",
+              "guides/eight-bit-register"
             ]
           }
         ]

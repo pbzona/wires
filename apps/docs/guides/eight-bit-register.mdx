@@ -1,0 +1,49 @@
+---
+title: "Tutorial: an eight-bit register"
+sidebarTitle: "Eight-bit register"
+description: "Wire eight one-bit memory cells as a group without hiding their individual signals."
+icon: "memory-stick"
+---
+
+An eight-bit register needs eight data inputs but only one `clock` and one `load`. Declare the data pins together with `bits("d", 8)`. Leave the controls as named scalars: every cell gets a different data pin and the same two control wires.
+
+The first circuit below builds the register from the standard [`RegisterBit`](/library/memory#registerbit). The second connects two such registers in series. Follow bit 3: `d3` feeds `bit3` in `first`, then `first`'s `q3` feeds `second`'s `d3`.
+
+```ts
+import { bits, circuit, simulate } from "@pbzona/wires";
+import { RegisterBit } from "@pbzona/wires/components";
+
+const Register8 = circuit(
+  { name: "Register8", inputs: [bits("d", 8), "clock", "load"], outputs: [bits("q", 8)] },
+  ({ inputs, add, output }) => {
+    const cells = inputs.d.map((d, i) =>
+      add(RegisterBit, `bit${i}`, { d, clock: inputs.clock, load: inputs.load }),
+    );
+    output("q", cells.map((cell) => cell.outputs.q));
+  },
+);
+
+const TwoRegisters = circuit(
+  { name: "TwoRegisters", inputs: [bits("d", 8), "clock", "load"], outputs: [bits("q", 8)] },
+  ({ inputs, add, output }) => {
+    const { clock, load } = inputs;
+    const first = add(Register8, "first", { d: inputs.d, clock, load });
+    const second = add(Register8, "second", { d: first.outputs.q, clock, load });
+    output("q", second.outputs.q);
+  },
+);
+
+const ready = simulate(TwoRegisters).set({ d3: 1, clock: 0, load: 1 }).run();
+const once = ready.set({ clock: 1 }).run(); // first captures 1, second captures the old X
+console.log(once.read("q3")); // "X"
+const twice = once.set({ clock: 0 }).run().set({ clock: 1 }).run();
+console.log(twice.read("q3")); // 1: the bit has reached the second register
+console.log(twice.read("q7")); // "X": no value was supplied for d7
+console.log(twice.inspect().signals["root.first.outputs.q3"]); // 1
+```
+
+Inside the builder, `inputs.d[3]` and `inputs.d3` refer to the same pin. Passing `{ d: first.outputs.q, clock, load }` connects `q0` to `d0` through `q7` to `d7`, in index order. Likewise `output("q", sources)` publishes all eight outputs at once. Both calls require exactly eight sources: seven is an error, not a request to pad the last bit.
+
+Outside the builder, there are only individual pins. `set()` takes `d0` through `d7`, `read()` takes `q0` through `q7`, and `readAll()` returns one value per output. There is no `set({ d: 8 })` or `read("q")`. The [workbench](/workbench) shows the same flat pins.
+
+A group adds no delay and doesn't make updates atomic. Each bit carries its own `0`, `1` or `"X"`, and changes when the gates driving it produce a new value. Use [`step()` and `trace()`](/guides/introspection#trace) to follow those changes rather than assuming all eight bits settle on the same tick.

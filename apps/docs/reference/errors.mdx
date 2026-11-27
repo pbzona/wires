@@ -15,7 +15,7 @@ WiresError
 
 ## CircuitError
 
-A structural problem with a definition. The message is prefixed with the circuit name, and relative paths are used for anything inside it.
+A structural problem with a definition. The message includes the circuit name when known, and relative paths are used for anything inside it.
 
 <ResponseField name="path" type="string | undefined">
   The name of the circuit or primitive involved, when known.
@@ -24,6 +24,7 @@ A structural problem with a definition. The message is prefixed with the circuit
 Thrown for:
 
 - invalid names, duplicate port names, duplicate or reserved instance names
+- a bit group with an invalid width, names that collide after expansion, or a group wired with too few or too many sources
 - a connection in the wrong direction, a port that doesn't exist, or a port of a foreign instance
 - multiple drivers for one sink
 - unconnected child inputs and undriven outputs, all reported together

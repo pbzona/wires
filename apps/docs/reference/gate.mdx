@@ -10,6 +10,8 @@ function gate<const I extends readonly string[], const O extends readonly string
 ): ComponentDefinition<I[number], O[number]>;
 ```
 
+Primitive ports are named individually. [`bits(name, width)`](/reference/circuit#named-bit-groups) is for `circuit()` only; it cannot appear in a gate's `inputs` or `outputs`.
+
 ## Parameters
 
 <ResponseField name="spec.name" type="string" required>

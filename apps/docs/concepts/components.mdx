@@ -15,17 +15,7 @@ A `ComponentDefinition` is a reusable, immutable description of a component. The
 | `"primitive"` | [`gate()`](/reference/gate) | An explicit `evaluate` function |
 | `"composite"` | [`circuit()`](/reference/circuit) | Other components wired together |
 
-Both kinds have the same shape:
-
-```ts
-interface ComponentDefinition<I extends string, O extends string> {
-  readonly kind: "primitive" | "composite";
-  readonly name: string;
-  readonly inputs: readonly I[];
-  readonly outputs: readonly O[];
-  describe(): ComponentDescription;
-}
-```
+Both kinds have a `name`, a `kind`, flat lists of input and output pin names, and a `describe()` method. If a circuit declares [named bit groups](/reference/circuit#named-bit-groups), its [`ComponentDefinition`](/reference/types#componentdefinition) also records the names that belong to each group in `inputGroups` and `outputGroups`. For primitives, these maps are empty.
 
 Definitions are frozen and hold no simulation state, so you can share one definition across any number of circuits and simulations.
 

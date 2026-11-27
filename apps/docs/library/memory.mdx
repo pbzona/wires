@@ -1,6 +1,6 @@
 ---
 title: "Memory"
-description: "The cross-coupled NAND SR latch."
+description: "Store a bit with an SR latch or a rising-edge register."
 icon: "memory-stick"
 ---
 
@@ -32,3 +32,19 @@ console.log(latch.readAll()); // { q: 1, qBar: 0 }: the bit is retained
 </Warning>
 
 See [Sequential logic](/guides/sequential-logic) for a full walkthrough.
+
+## RegisterBit
+
+`RegisterBit` stores `d` on the rising edge of `clock` when `load` is `1`. With `load` set to `0`, it holds `q` instead. While `clock` is low, the first latch tracks the selected value; when `clock` rises, the second latch passes that value to `q`. The change takes time to propagate through the NAND gates.
+
+```ts
+import { simulate } from "@pbzona/wires";
+import { RegisterBit } from "@pbzona/wires/components";
+
+const ready = simulate(RegisterBit).set({ d: 1, clock: 0, load: 1 }).run();
+console.log(ready.read("q")); // "X": nothing has been stored yet
+const stored = ready.set({ clock: 1 }).run();
+console.log(stored.read("q")); // 1
+```
+
+Settle the data and load control with the clock low before raising it. To store several bits on the same clock, build an [eight-bit register](/guides/eight-bit-register) from these cells.

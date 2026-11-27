@@ -4,7 +4,7 @@ description: "Public types exported from wires."
 icon: "braces"
 ---
 
-All types are exported from `wires`. Import them with `import type`.
+All types on this page are exported from `@pbzona/wires`. Import them with `import type`.
 
 ## Signal
 
@@ -25,29 +25,20 @@ type SignalTransition = {
 
 ## ComponentDefinition
 
-```ts
-interface ComponentDefinition<I extends string = string, O extends string = string> {
-  readonly kind: "primitive" | "composite";
-  readonly name: string;
-  readonly inputs: readonly I[];
-  readonly outputs: readonly O[];
-  describe(): ComponentDescription;
-}
-```
+`ComponentDefinition` describes a reusable primitive or composite. Its `name` is the definition name, `kind` is `"primitive"` or `"composite"`, and `describe()` returns a `ComponentDescription`.
+
+| Port property | Contents for the [eight-bit register](/guides/eight-bit-register) |
+| --- | --- |
+| `inputs` | Flat names in declaration order: `d0` through `d7`, then `clock` and `load` |
+| `outputs` | `q0` through `q7` |
+| `inputGroups.d` | The eight data input names, starting at `d0` |
+| `outputGroups.q` | The eight data output names, starting at `q0` |
+
+The group maps are read-only. A definition with no groups (including every primitive) has empty maps. TypeScript infers group names, not widths. The builder checks how many sources you supply when you wire a group. An out-of-range index returns `undefined`, not a port; with `noUncheckedIndexedAccess`, TypeScript asks you to account for that. Use `.map()` to visit just the ports that exist.
 
 ## ComponentInstance
 
-Returned by `add()` inside a circuit builder.
-
-```ts
-interface ComponentInstance<I extends string = string, O extends string = string> {
-  readonly kind: "instance";
-  readonly name: string;
-  readonly definition: ComponentDefinition<I, O>;
-  readonly inputs: { readonly [K in I]: Port<K, "input", "sink"> };
-  readonly outputs: { readonly [K in O]: Port<K, "output", "source"> };
-}
-```
+The part returned by `add()` has `kind: "instance"`, its own `name`, its `definition` and two sets of ports. Its `inputs` are sinks; its `outputs` are sources. For a grouped instance, `part.outputs.q[3]` and `part.outputs.q3` refer to the same source port. These are builder references, not [`Signal`](#signal) values.
 
 ## Port, SourcePort, SinkPort
 
@@ -77,11 +68,7 @@ interface CircuitScope {
 
 ## InputWiring
 
-The third argument to `add()`: what feeds each input of the part being added. Inputs left out must be wired later with `feed()`.
-
-```ts
-type InputWiring<I extends string> = { readonly [K in I]?: SourcePort };
-```
+`InputWiring` is the input object passed to `add()`. A scalar pin takes one `SourcePort`; a group takes a `readonly SourcePort[]` of the matching width. For example, `{ d: first.outputs.q, clock, load }` gives a register eight data sources and two control sources. Any input pin left out must be fed later with `feed()`.
 
 ## ComponentDescription
 
@@ -108,8 +95,9 @@ type ConnectionDescription = { readonly source: string; readonly destination: st
 | Type | Used by |
 | --- | --- |
 | `GateSpec<I, O>` | The argument to [`gate()`](/reference/gate) |
-| `CircuitSpec<I, O>` | The first argument to [`circuit()`](/reference/circuit) |
-| `CircuitBuilder<I, O>` | The builder callback's parameter |
+| `CircuitSpec` | The first argument to [`circuit()`](/reference/circuit); its lists accept both strings and `BitGroup` declarations |
+| `BitGroup` | The named, ordered pin declaration returned by [`bits(name, width)`](/reference/circuit#named-bit-groups) |
+| `CircuitBuilder` | The builder callback's parameter |
 
 ## Simulation types
 

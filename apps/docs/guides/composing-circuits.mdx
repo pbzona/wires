@@ -55,6 +55,10 @@ A **source** is anything that can drive a wire:
 
 A part's inputs are never sources: they receive a signal, they don't produce one. One source can feed any number of inputs (fan-out), but each input has exactly one source.
 
+## Wiring several bits
+
+Declare related pins with [`bits(name, width)`](/reference/circuit#named-bit-groups) and keep unrelated pins named individually. For example, the [eight-bit register](/guides/eight-bit-register) has indexed data (`inputs.d[i]`) alongside `inputs.clock` and `inputs.load`. A parent can wire the whole data input with `add(Register8, { d: first.outputs.q, clock, load })` instead of listing eight connections.
+
 ## Naming parts
 
 Part names are optional:

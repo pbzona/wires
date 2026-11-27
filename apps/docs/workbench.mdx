@@ -21,6 +21,8 @@ The opening sheet has inputs `a` and `b`. They feed an XOR for `sum` and an AND 
 
 To remove a chip, click its name on the canvas, then choose **Remove chip** above the sheet or press **Delete** or **Backspace**. This also removes the wires connected to that instance. The chip stays in the library.
 
+A chip defined with [named bit groups](/reference/circuit#named-bit-groups) still has one pin per bit on the canvas: wire `d0` through `d7` separately. Group names are a writing aid in the TypeScript builder, not extra pins or controls.
+
 ## Add a chip by hand
 
 The personal library lives in `chips/`, not `src/`. For example, save the following as `chips/BothLow.ts`:
