@@ -33,7 +33,7 @@
       "dependsOn": ["//#release:verify", "^npm:publish"],
       "cache": false,
       "interactive": true,
-      "passThroughEnv": ["NPM_TOKEN", "NODE_AUTH_TOKEN", "NPM_CONFIG_USERCONFIG", "NPM_CONFIG_OTP"]
+      "passThroughEnv": ["NPM_TOKEN", "NODE_AUTH_TOKEN", "NPM_CONFIG_USERCONFIG", "NPM_CONFIG_OTP", "SSH_AUTH_SOCK"]
     },
     "dev": {
       "dependsOn": ["^build"],
