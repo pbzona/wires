@@ -45,7 +45,7 @@
     "build": "pnpm clean && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "examples": "pnpm build && node examples/01-gates.ts && node examples/02-composition.ts && node examples/03-four-bit-adder.ts && node examples/04-sr-latch.ts",
+    "examples": "pnpm build && node examples/01-gates.ts && node examples/02-composition.ts && node examples/03-four-bit-adder.ts && node examples/04-sr-latch.ts && node examples/05-register.ts",
     "release:pack": "pnpm --config.ignore-scripts=true pack --pack-destination ../../dist/npm",
     "npm:preview": "node ../../scripts/publish-tarball.mjs --dry-run",
     "npm:publish": "node ../../scripts/publish-tarball.mjs --publish",

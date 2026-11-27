@@ -5,4 +5,4 @@
 export { AND, NAND, NOR, NOT, OR, XNOR, XOR } from "./gates.js";
 export { FullAdder, HalfAdder } from "./arithmetic.js";
 export { Demux, Mux } from "./routing.js";
-export { SRLatch } from "./memory.js";
+export { RegisterBit, SRLatch } from "./memory.js";

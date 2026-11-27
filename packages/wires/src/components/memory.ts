@@ -1,5 +1,6 @@
 import { circuit } from "../index.js";
-import { NAND } from "./gates.js";
+import { NAND, NOT } from "./gates.js";
+import { Mux } from "./routing.js";
 
 /**
  * Cross-coupled NAND SR latch with active-low controls.
@@ -23,5 +24,34 @@ export const SRLatch = circuit(
     feed(top.inputs.b, bottom.outputs.out); // the feedback wire
     output("q", top.outputs.out);
     output("qBar", bottom.outputs.out);
+  },
+);
+
+/** Follows d while enable is high; otherwise both SR controls are inactive. */
+const DLatch = circuit(
+  { name: "DLatch", inputs: ["d", "enable"], outputs: ["q"] },
+  ({ inputs, add, output }) => {
+    const notD = add(NOT, "notD", { a: inputs.d });
+    const setN = add(NAND, "setN", { a: inputs.d, b: inputs.enable });
+    const resetN = add(NAND, "resetN", { a: notD.outputs.out, b: inputs.enable });
+    const latch = add(SRLatch, "latch", { setN: setN.outputs.out, resetN: resetN.outputs.out });
+    output("q", latch.outputs.q);
+  },
+);
+
+/**
+ * One rising-edge register bit. With clock low, settle d and load before
+ * raising the clock. The first latch tracks the selected bit while low; the
+ * second publishes it while high. With load low, q feeds back unchanged.
+ */
+export const RegisterBit = circuit(
+  { name: "RegisterBit", inputs: ["d", "clock", "load"], outputs: ["q"] },
+  ({ inputs, add, feed, output }) => {
+    const next = add(Mux, "next", { b: inputs.d, select: inputs.load }); // a gets the stored q below
+    const notClock = add(NOT, "notClock", { a: inputs.clock });
+    const master = add(DLatch, "master", { d: next.outputs.out, enable: notClock.outputs.out });
+    const slave = add(DLatch, "slave", { d: master.outputs.q, enable: inputs.clock });
+    feed(next.inputs.a, slave.outputs.q);
+    output("q", slave.outputs.q);
   },
 );
