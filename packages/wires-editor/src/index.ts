@@ -69,6 +69,8 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
 
   function rebuild() {
     views = [];
+    // Back at the draft, so a part selected while looking inside another one no longer exists here.
+    if (!draft.parts.some(p => p.id === selected)) selected = null;
     problem = "";
     driven = Object.assign(Object.create(null), Object.fromEntries(draft.inputs.map(name => [name, driven[name] ?? 0])));
     try {
