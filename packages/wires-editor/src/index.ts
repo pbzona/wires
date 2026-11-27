@@ -223,7 +223,16 @@ export function mountEditor(host: HTMLElement, options: EditorOptions): Editor {
 
   function renderInspector() {
     if (!wiring.open) return;
-    const box = el("inspector"); box.replaceChildren();
+    const box = el("inspector");
+    // Re-rendering replaces every control. Remember which one had focus so keyboard users stay in place.
+    const key = (node: Element) => node.getAttribute("aria-label") ?? node.textContent;
+    const focused = document.activeElement && box.contains(document.activeElement) ? key(document.activeElement) : null;
+    box.replaceChildren();
+    fillInspector(box);
+    if (focused !== null) [...box.querySelectorAll<HTMLElement>("select, input, button")].find(node => key(node) === focused)?.focus();
+  }
+
+  function fillInspector(box: HTMLElement) {
     const row = document.createElement("div"); row.className = "we-control";
     const pick = document.createElement("select"); pick.setAttribute("aria-label", "Select part");
     pick.add(new Option("Circuit interface", ""));
