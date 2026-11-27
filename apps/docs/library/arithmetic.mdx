@@ -21,11 +21,12 @@ import { AND, XOR } from "@pbzona/wires/components";
 
 const HalfAdder = circuit(
   { name: "HalfAdder", inputs: ["a", "b"], outputs: ["sum", "carry"] },
-  ({ inputs, add, output }) => {
-    const xor = add(XOR, "xor", { a: inputs.a, b: inputs.b });
-    const and = add(AND, "and", { a: inputs.a, b: inputs.b });
-    output("sum", xor.outputs.out);
-    output("carry", and.outputs.out);
+  (chip) => {
+    const { a, b } = chip.inputs;
+    const xor = chip.add(XOR, "xor", { a, b });
+    const and = chip.add(AND, "and", { a, b });
+    chip.output("sum", xor.outputs.out);
+    chip.output("carry", and.outputs.out);
   },
 );
 ```

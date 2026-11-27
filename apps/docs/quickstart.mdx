@@ -33,7 +33,7 @@ bun add @pbzona/wires
 
 <Steps>
   <Step title="Define a primitive gate">
-    A primitive has an explicit evaluation function. Here is NAND, the only gate you need to build everything else.
+    A primitive computes values. When the simulator evaluates NAND, `a` and `b` are signal values (`0`, `1` or `"X"`), and `out` is the value the gate produces.
 
     ```ts
     import { gate } from "@pbzona/wires";
@@ -48,65 +48,40 @@ bun add @pbzona/wires
     });
     ```
 
-    `@pbzona/wires/components` exports this exact gate, so the next steps import it from there.
+    The next example runs on its own. It imports this same NAND gate from `@pbzona/wires/components`.
   </Step>
 
-  <Step title="Compose it into a circuit">
-    A composite circuit adds parts one at a time, saying what feeds each part's inputs, then says what drives its outputs.
+  <Step title="Wire and test a ready light">
+    A circuit connects wires. Name its pins for what they mean on that chip: a ready light needs to know whether the machine is `busy` and report whether the light is `lit`. The NAND inside it keeps its usual pins `a`, `b` and `out`.
 
     ```ts
-    import { circuit } from "@pbzona/wires";
+    import { circuit, simulate } from "@pbzona/wires";
     import { NAND } from "@pbzona/wires/components";
 
-    export const AND = circuit(
-      { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
-      ({ inputs, add, output }) => {
-        const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
-        const not = add(NAND, "not", { a: nand.outputs.out, b: nand.outputs.out });
-        output("out", not.outputs.out);
+    const ReadyLight = circuit(
+      { name: "ReadyLight", inputs: ["busy"], outputs: ["lit"] },
+      (chip) => {
+        const busy = chip.inputs.busy;
+        const inverter = chip.add(NAND, { a: busy, b: busy });
+        chip.output("lit", inverter.outputs.out);
       },
     );
+
+    const idle = simulate(ReadyLight).set({ busy: 0 }).run();
+    console.log(idle.read("lit")); // 1
+
+    const working = idle.set({ busy: 1 }).run();
+    console.log(working.read("lit")); // 0
     ```
 
-    Read it top to bottom: the inputs feed `nand`, `nand` feeds `not` (a NAND with both inputs tied together is a NOT), and `not` drives the output.
-  </Step>
+    `chip` is the builder for `ReadyLight`. Both NAND pins get the same wire, so the NAND inverts `busy`. Its `out` pin drives the light.
 
-  <Step title="Simulate it">
-    A simulation is a sequence of states. `simulate()` gives you the first one, and `set()` and `run()` each return a new state. The old state never changes.
-
-    ```ts
-    import { simulate } from "@pbzona/wires";
-    import { AND } from "@pbzona/wires/components";
-
-    let sim = simulate(AND);
-
-    sim = sim.set({ a: 1, b: 1 }).run();
-    console.log(sim.read("out")); // 1
-
-    sim = sim.set({ a: 0 }).run();
-    console.log(sim.read("out")); // 0
-    ```
-
-    Time only moves when you call `run()` (or `step()`, which moves one tick).
-  </Step>
-
-  <Step title="Look inside">
-    Every state can report the value of every port in the hierarchy, and with tracing on, every change that led to it.
-
-    ```ts
-    import { simulate } from "@pbzona/wires";
-    import { AND } from "@pbzona/wires/components";
-
-    const settled = simulate(AND, { trace: true }).set({ a: 1, b: 1 }).run();
-
-    console.log(settled.inspect().signals["root.nand.outputs.out"]); // 0
-    console.log(settled.trace().length); // 4 wire changes
-    ```
+    `set()` queues the change; `run()` advances time until the circuit settles. Each returns a new state, so `idle` still shows the light on. To see the gate delay, [step through a simulation](/guides/running-simulations) or [trace a wire](/guides/introspection#trace).
   </Step>
 </Steps>
 
 <Tip>
-  Port names are inferred from your definitions. `settled.read("nope")` or `add(NAND, "nand", { c: inputs.a })` fails at compile time, not at runtime.
+  Port names belong to the chip that declares them. `working.read("lit")` is valid; `working.read("out")` is a type error because `out` belongs to NAND, not `ReadyLight`.
 </Tip>
 
 ## Next steps

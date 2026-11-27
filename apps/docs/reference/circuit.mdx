@@ -20,7 +20,7 @@ Use `circuit(spec, build)` to give a set of wired parts its own name and externa
   External outputs, declared the same way. Input and output names must not collide.
 </ResponseField>
 
-<ResponseField name="build" type="(builder: CircuitBuilder) => void" required>
+<ResponseField name="build" type="(chip: CircuitBuilder) => void" required>
   A synchronous callback that adds parts and wires them. It runs **immediately**, exactly once, and its result is validated before `circuit()` returns.
 </ResponseField>
 
@@ -38,14 +38,14 @@ A group is a builder convenience, not another port. The definition's `inputs` an
 
 ## CircuitBuilder
 
-Every wiring call reads **destination ← source**.
+The examples call the builder `chip`. Every wiring call reads **destination ← source**.
 
 <ResponseField name="inputs" type="object">
-  The circuit's own inputs. Scalar names give you one source. A group name gives you its sources in index order: `inputs.d[3]` is the same port as `inputs.d3`.
+  The circuit's own inputs. Scalar names give you one source. A group name gives you its sources in index order: `chip.inputs.d[3]` is the same port as `chip.inputs.d3`.
 </ResponseField>
 
 <ResponseField name="add" type="(definition, name?, inputs?) => ComponentInstance">
-  Adds a part made from any definition, and wires the inputs listed in `inputs`, an object like `{ a: source, b: source }`. Inputs you leave out must be wired later with `feed`. Without `name`, a deterministic name `<Definition>#<n>` is generated, and the inputs object moves to the second argument: `add(NOT, { a: inputs.a })`. The returned part exposes `outputs` (sources) and `inputs` (only for `feed`). For a grouped input, pass one source per bit: `{ d: first.outputs.q, clock, load }` wires each `d` bit from the matching `q` bit.
+  Adds a part made from any definition, and wires the inputs listed in `inputs`, an object like `{ a: source, b: source }`. Inputs you leave out must be wired later with `chip.feed()`. Without `name`, a deterministic name `<Definition>#<n>` is generated, and the inputs object moves to the second argument: `chip.add(NOT, { a: chip.inputs.a })`. The returned part exposes `outputs` (sources) and `inputs` (only for `chip.feed()`). For a grouped input, pass one source per bit: `{ d: first.outputs.q, clock, load }` wires each `d` bit from the matching `q` bit.
 </ResponseField>
 
 <ResponseField name="feed" type="(input: SinkPort, source: SourcePort) => void">
@@ -53,7 +53,7 @@ Every wiring call reads **destination ← source**.
 </ResponseField>
 
 <ResponseField name="output" type="(name, sourceOrSources) => void">
-  Drives one scalar output from one source, or a whole output group from an array of sources: `output("q", sources)` wires `q0` from `sources[0]`, `q1` from `sources[1]`, and so on. Each pin must be driven exactly once.
+  Drives one scalar output from one source, or a whole output group from an array of sources: `chip.output("q", sources)` wires `q0` from `sources[0]`, `q1` from `sources[1]`, and so on. Each pin must be driven exactly once.
 </ResponseField>
 
 ## Example
@@ -64,10 +64,10 @@ import { NAND, NOT } from "@pbzona/wires/components";
 
 const AND = circuit(
   { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, add, output }) => {
-    const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
-    const not = add(NOT, "not", { a: nand.outputs.out });
-    output("out", not.outputs.out);
+  (chip) => {
+    const nand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.b });
+    const not = chip.add(NOT, { a: nand.outputs.out });
+    chip.output("out", not.outputs.out);
   },
 );
 ```
@@ -80,12 +80,12 @@ import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
-  ({ inputs, add, feed, output }) => {
-    const top = add(NAND, "top", { a: inputs.setN });
-    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
-    feed(top.inputs.b, bottom.outputs.out);
-    output("q", top.outputs.out);
-    output("qBar", bottom.outputs.out);
+  (chip) => {
+    const top = chip.add(NAND, { a: chip.inputs.setN });
+    const bottom = chip.add(NAND, { a: chip.inputs.resetN, b: top.outputs.out });
+    chip.feed(top.inputs.b, bottom.outputs.out);
+    chip.output("q", top.outputs.out);
+    chip.output("qBar", bottom.outputs.out);
   },
 );
 ```
@@ -98,9 +98,9 @@ These wiring and declaration errors throw `CircuitError`. Width mismatches are r
 | --- | --- |
 | `bits()` | Invalid group name or width |
 | `circuit()` call | Invalid or duplicate port names (including group names and expanded pins), invalid circuit name, missing builder |
-| `add()` | Not a definition, invalid, duplicate or reserved (`inputs`, `outputs`) instance name, or a component that isn't defined yet |
-| `add()` inputs | A group with the wrong number of sources, a pin wired both individually and through its group, an input name the part doesn't have, or a source that isn't a port, is a part's input, or belongs to another circuit |
-| `feed()` | The destination isn't a part's input, the source is invalid, or the input already has a source |
-| `output()` | A group with the wrong number of sources, an output name the circuit doesn't have, an invalid source, or an output that's already driven |
+| `chip.add()` | Not a definition, invalid, duplicate or reserved (`inputs`, `outputs`) instance name, or a component that isn't defined yet |
+| `chip.add()` inputs | A group with the wrong number of sources, a pin wired both individually and through its group, an input name the part doesn't have, or a source that isn't a port, is a part's input, or belongs to another circuit |
+| `chip.feed()` | The destination isn't a part's input, the source is invalid, or the input already has a source |
+| `chip.output()` | A group with the wrong number of sources, an output name the circuit doesn't have, an invalid source, or an output that's already driven |
 | After the builder returns | Child inputs left unconnected, outputs left undriven, or the builder returned a promise |
 | Any builder method after the builder returns | The builder has finished and can't be used again |

@@ -63,9 +63,9 @@ import { NOT } from "@pbzona/wires/components";
 
 const InvertOneBit = circuit(
   { name: "InvertOneBit", inputs: ["a", "b"], outputs: [bits("q", 2)] },
-  ({ inputs, add, output }) => {
-    const invert = add(NOT, "invert", { a: inputs.b });
-    output("q", [inputs.a, invert.outputs.out]);
+  (chip) => {
+    const invert = chip.add(NOT, { a: chip.inputs.b });
+    chip.output("q", [chip.inputs.a, invert.outputs.out]);
   },
 );
 

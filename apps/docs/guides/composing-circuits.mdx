@@ -4,73 +4,62 @@ description: "Build composite circuits by adding parts and saying what feeds the
 icon: "layers"
 ---
 
-A composite circuit is defined with [`circuit()`](/reference/circuit): a spec with its name and external ports, plus a builder callback that adds parts and wires them together.
+A composite circuit can become a part in another circuit. Start with a primitive NAND, build a NOT from it, then use that NOT alongside a second NAND to build an AND. Each [`circuit()`](/reference/circuit) call declares the new circuit's name and ports; its `(chip)` callback wires up the inside.
 
 ```ts
 import { circuit, simulate } from "@pbzona/wires";
 import { NAND } from "@pbzona/wires/components";
 
-const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, ({ inputs, add, output }) => {
-  const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
-  output("out", g.outputs.out);
+const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, (chip) => {
+  const tiedNand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.a });
+  chip.output("out", tiedNand.outputs.out);
 });
 
-const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, ({ inputs, add, output }) => {
-  const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
-  const not = add(NOT, "not", { a: nand.outputs.out }); // composites are added exactly like primitives
-  output("out", not.outputs.out);
+const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, (chip) => {
+  const nand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.b });
+  const inverter = chip.add(NOT, { a: nand.outputs.out });
+  chip.output("out", inverter.outputs.out);
 });
 
 const sim = simulate(AND).set({ a: 1, b: 1 }).run();
 console.log(sim.read("out")); // 1
 ```
 
-Read it top to bottom. Each line adds one part and says what feeds each of its inputs, so the signal flows down the page: the circuit's inputs feed `nand`, `nand` feeds `not`, and `not` drives the output.
+Inside NOT, `chip.inputs.a` feeds both NAND inputs: tying them together turns NAND into an inverter. Inside AND, `chip` is a different builder. Its inputs feed `nand`, whose output feeds `inverter`. AND uses NOT's `a` and `out` ports without reaching inside it. Another circuit could now add AND the same way.
 
 ## The builder context
 
 | Member | Description |
 | --- | --- |
-| `inputs` | The circuit's own inputs. Use them as sources for the parts you add. |
-| `add(definition, name?, inputs?)` | Adds a part (primitive or composite), wires the inputs you list, and returns it |
-| `feed(part.inputs.x, source)` | Wires an input of a part you already added. Used for feedback. |
-| `output(name, source)` | Drives one of the circuit's own outputs |
+| `chip.inputs` | The circuit's own inputs. Use them as sources for the parts you add. |
+| `chip.add(definition, wiring)` | Adds a primitive or composite, wires the inputs you list, and returns the part. |
+| `chip.feed(part.inputs.x, source)` | Wires a part's input after the part has been added. |
+| `chip.output(name, source)` | Drives one of the circuit's own outputs. |
 
-Every wiring call reads **destination ← source**, like an assignment:
-
-```ts
-add(NOT, "not", { a: nand.outputs.out }); // not's input a  ← nand's output
-feed(top.inputs.b, bottom.outputs.out);   // top's input b  ← bottom's output
-output("out", not.outputs.out);           // circuit's out  ← not's output
-```
-
-`add` doesn't care whether a definition is primitive or composite, and nesting depth is unlimited.
+Every wiring call reads **destination ← source**, like an assignment. In `chip.add(NOT, { a: nand.outputs.out })`, the destination is the inverter's `a` input and the source is the NAND's output. In `chip.output("out", inverter.outputs.out)`, the destination is AND's own `out` pin.
 
 ## Sources
 
 A **source** is anything that can drive a wire:
 
-- the circuit's own inputs (`inputs.a`)
+- the circuit's own inputs (`chip.inputs.a`)
 - the outputs of parts you've added (`nand.outputs.out`)
 
 A part's inputs are never sources: they receive a signal, they don't produce one. One source can feed any number of inputs (fan-out), but each input has exactly one source.
 
 ## Wiring several bits
 
-Declare related pins with [`bits(name, width)`](/reference/circuit#named-bit-groups) and keep unrelated pins named individually. For example, the [eight-bit register](/guides/eight-bit-register) has indexed data (`inputs.d[i]`) alongside `inputs.clock` and `inputs.load`. A parent can wire the whole data input with `add(Register8, { d: first.outputs.q, clock, load })` instead of listing eight connections.
+Declare related pins with [`bits(name, width)`](/reference/circuit#named-bit-groups) and keep unrelated pins named individually. For example, the [eight-bit register](/guides/eight-bit-register) has indexed data (`chip.inputs.d[i]`) alongside `chip.inputs.clock` and `chip.inputs.load`. To wire two registers in series, pass `d: first.outputs.q` in the second register's `chip.add` call instead of listing eight connections.
 
 ## Naming parts
 
-Part names are optional:
+`const inverter = chip.add(NOT, { a: nand.outputs.out })` gives you a local variable for wiring. It doesn't name the instance in the hierarchy. By default the builder assigns names like `NOT#0` and `NOT#1`, counting unnamed instances of each definition in order.
 
-- **Explicit names** must be identifiers and unique within the circuit. `inputs` and `outputs` are reserved.
-- **Generated names** have the form `<Definition>#<n>`, counted per definition in the order you call `add`, for example `XOR#0` and `XOR#1`. Leave the name out and pass the inputs second: `add(NOT, { a: inputs.a })`.
-
-Explicit names make hierarchical paths readable (`root.fa3.or` rather than `root.FullAdder#3.OR#0`), so prefer them for anything you plan to inspect.
+Pass a name as the second argument to `chip.add` when you want to recognize the part in an inspection path. For example, the [four-bit adder](/guides/four-bit-adder) names its stages `fa0` through `fa3`, so `root.fa3.or` identifies the OR inside the last stage. Explicit names must be identifiers and unique within the circuit; `inputs` and `outputs` are reserved.
 
 ## Feedback
 
-Sometimes a part needs a signal from a part that comes later. Memory works this way. Leave that input out of the `add` call, then wire it with `feed` once the source exists:
+Sometimes a part needs a signal from a part that comes later. Memory works this way. Leave that input out of the `chip.add` call, then wire it with `chip.feed` once the source exists:
 
 ```ts
 import { circuit } from "@pbzona/wires";
@@ -78,17 +67,17 @@ import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
-  ({ inputs, add, feed, output }) => {
-    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
-    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
-    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
-    output("q", top.outputs.out);
-    output("qBar", bottom.outputs.out);
+  (chip) => {
+    const qGate = chip.add(NAND, { a: chip.inputs.setN });
+    const qBarGate = chip.add(NAND, { a: chip.inputs.resetN, b: qGate.outputs.out });
+    chip.feed(qGate.inputs.b, qBarGate.outputs.out);
+    chip.output("q", qGate.outputs.out);
+    chip.output("qBar", qBarGate.outputs.out);
   },
 );
 ```
 
-Because feedback is the only time you need `feed`, every feedback wire stands out when you read a circuit. Cycles are never rejected just for being cycles. See [Sequential logic](/guides/sequential-logic) for how they behave.
+The `chip.feed` call closes the loop: the gate driving `qBar` feeds the gate driving `q`. Cycles are never rejected just for being cycles. See [Sequential logic](/guides/sequential-logic) for how they behave.
 
 The one exception is a loop made only of wires, with no gate anywhere in it. That can happen through pass-through composites, and since such a wire has no driver, it is reported when the circuit is elaborated.
 

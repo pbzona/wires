@@ -38,7 +38,7 @@ The group maps are read-only. A definition with no groups (including every primi
 
 ## ComponentInstance
 
-The part returned by `add()` has `kind: "instance"`, its own `name`, its `definition` and two sets of ports. Its `inputs` are sinks; its `outputs` are sources. For a grouped instance, `part.outputs.q[3]` and `part.outputs.q3` refer to the same source port. These are builder references, not [`Signal`](#signal) values.
+The part returned by `chip.add()` has `kind: "instance"`, its own `name`, its `definition` and two sets of ports. Its `inputs` are sinks; its `outputs` are sources. For a grouped instance, `part.outputs.q[3]` and `part.outputs.q3` refer to the same source port. These are builder references, not [`Signal`](#signal) values.
 
 ## Port, SourcePort, SinkPort
 
@@ -64,11 +64,11 @@ interface CircuitScope {
 }
 ```
 
-`SourcePort` is useful for variables that track a signal through a loop, like the carry in a ripple adder. `SinkPort` is what `feed()` accepts as its destination: a part's input.
+`SourcePort` is useful for variables that track a signal through a loop, like the carry in a ripple adder. `SinkPort` is what `chip.feed()` accepts as its destination: a part's input.
 
 ## InputWiring
 
-`InputWiring` is the input object passed to `add()`. A scalar pin takes one `SourcePort`; a group takes a `readonly SourcePort[]` of the matching width. For example, `{ d: first.outputs.q, clock, load }` gives a register eight data sources and two control sources. Any input pin left out must be fed later with `feed()`.
+`InputWiring` is the input object passed to `chip.add()`. A scalar pin takes one `SourcePort`; a group takes a `readonly SourcePort[]` of the matching width. For example, `{ d: first.outputs.q, clock, load }` gives a register eight data sources and two control sources. Any input pin left out must be fed later with `chip.feed()`.
 
 ## ComponentDescription
 

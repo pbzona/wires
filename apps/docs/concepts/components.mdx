@@ -21,7 +21,7 @@ Definitions are frozen and hold no simulation state, so you can share one defini
 
 ## Instances
 
-When a circuit calls `add(definition, name?, inputs?)`, it creates a `ComponentInstance`, which is one part made from that definition. Two parts made from the same definition are fully independent. They have different names, different hierarchical paths and separate signal values.
+Calling `chip.add(definition, name?, inputs?)` inside a circuit creates a `ComponentInstance`, which is one part made from that definition. Two parts made from the same definition are fully independent. They have different names, different hierarchical paths and separate signal values.
 
 ```ts
 import { circuit } from "@pbzona/wires";
@@ -29,11 +29,11 @@ import { NOT } from "@pbzona/wires/components";
 
 const TwoInverters = circuit(
   { name: "TwoInverters", inputs: ["a", "b"], outputs: ["x", "y"] },
-  ({ inputs, add, output }) => {
-    const first = add(NOT, { a: inputs.a }); // named "NOT#0"
-    const second = add(NOT, { a: inputs.b }); // named "NOT#1"
-    output("x", first.outputs.out);
-    output("y", second.outputs.out);
+  (chip) => {
+    const first = chip.add(NOT, { a: chip.inputs.a }); // named "NOT#0"
+    const second = chip.add(NOT, { a: chip.inputs.b }); // named "NOT#1"
+    chip.output("x", first.outputs.out);
+    chip.output("y", second.outputs.out);
   },
 );
 ```
@@ -53,7 +53,7 @@ Ports are structural references only. They never hold values.
 
 Inside a circuit, signals flow from **sources** to the inputs of parts and to the circuit's own outputs. A source is either:
 
-- one of the circuit's own inputs (`inputs.a`), or
+- one of the circuit's own inputs (`chip.inputs.a`), or
 - an output of a part the circuit added (`g.outputs.out`).
 
 A part's inputs (`g.inputs.a`) are never sources. You only ever say what *feeds* them. Using one as a source is a compile-time error, and the same check runs again at runtime.
@@ -64,9 +64,9 @@ A connection links one source to one input or output. Each wiring call in a buil
 
 | Call | Connects |
 | --- | --- |
-| `add(NOT, "not", { a: nand.outputs.out })` | `not`'s input `a` ← `nand`'s output |
-| `feed(top.inputs.b, bottom.outputs.out)` | `top`'s input `b` ← `bottom`'s output |
-| `output("out", not.outputs.out)` | the circuit's output `out` ← `not`'s output |
+| `chip.add(NOT, "not", { a: nand.outputs.out })` | `not`'s input `a` ← `nand`'s output |
+| `chip.feed(top.inputs.b, bottom.outputs.out)` | `top`'s input `b` ← `bottom`'s output |
+| `chip.output("out", not.outputs.out)` | the circuit's output `out` ← `not`'s output |
 
 - **Fan-out is allowed.** One source can feed any number of inputs.
 - **One driver per input.** Giving an input or output a second source throws a `CircuitError`.

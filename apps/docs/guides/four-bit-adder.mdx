@@ -13,7 +13,7 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
   </Step>
 
   <Step title="Chain the full adders">
-    Each stage's carry out feeds the next stage's carry in. A `SourcePort` variable tracks the carry as the loop runs.
+    Each stage's carry out feeds the next stage's carry in. `carry` starts at `chip.inputs.carryIn`. On each pass, `chip.add` wires it to one stage and `chip.output` connects that stage's sum to the matching output pin. The stage's carry out becomes the source for the next pass.
 
     ```ts
     import { circuit, type SourcePort } from "@pbzona/wires";
@@ -25,19 +25,23 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
         inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
         outputs: ["s0", "s1", "s2", "s3", "carryOut"],
       },
-      ({ inputs, add, output }) => {
-        let carry: SourcePort = inputs.carryIn;
+      (chip) => {
+        let carry: SourcePort = chip.inputs.carryIn;
         for (const i of [0, 1, 2, 3] as const) {
-          const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
-          output(`s${i}`, fa.outputs.sum);
-          carry = fa.outputs.carryOut;
+          const stage = chip.add(FullAdder, `fa${i}`, {
+            a: chip.inputs[`a${i}`],
+            b: chip.inputs[`b${i}`],
+            carryIn: carry,
+          });
+          chip.output(`s${i}`, stage.outputs.sum);
+          carry = stage.outputs.carryOut;
         }
-        output("carryOut", carry);
+        chip.output("carryOut", carry);
       },
     );
     ```
 
-    The template literal keys like `` inputs[`a${i}`] `` are still type-checked, because `i` is the literal union `0 | 1 | 2 | 3`.
+    The template literal keys like `` chip.inputs[`a${i}`] `` are still type-checked, because `i` is the literal union `0 | 1 | 2 | 3`.
   </Step>
 
   <Step title="Add some numbers">
@@ -51,14 +55,18 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
         inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
         outputs: ["s0", "s1", "s2", "s3", "carryOut"],
       },
-      ({ inputs, add, output }) => {
-        let carry: SourcePort = inputs.carryIn;
+      (chip) => {
+        let carry: SourcePort = chip.inputs.carryIn;
         for (const i of [0, 1, 2, 3] as const) {
-          const fa = add(FullAdder, `fa${i}`, { a: inputs[`a${i}`], b: inputs[`b${i}`], carryIn: carry });
-          output(`s${i}`, fa.outputs.sum);
-          carry = fa.outputs.carryOut;
+          const stage = chip.add(FullAdder, `fa${i}`, {
+            a: chip.inputs[`a${i}`],
+            b: chip.inputs[`b${i}`],
+            carryIn: carry,
+          });
+          chip.output(`s${i}`, stage.outputs.sum);
+          carry = stage.outputs.carryOut;
         }
-        output("carryOut", carry);
+        chip.output("carryOut", carry);
       },
     );
 
@@ -69,8 +77,8 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
     for (const [a, b] of [[3, 4], [7, 9], [15, 15]] as const) {
       const before = sim.set({ ...operandPins("a", a), ...operandPins("b", b), carryIn: 0 });
       sim = before.run();
-      const o = sim.readAll();
-      const sum = [o.s0, o.s1, o.s2, o.s3, o.carryOut].reduce<number>((acc, bit, i) => acc + Number(bit) * 2 ** i, 0);
+      const { s0, s1, s2, s3, carryOut } = sim.readAll();
+      const sum = [s0, s1, s2, s3, carryOut].reduce<number>((total, bit, i) => total + Number(bit) * 2 ** i, 0);
       console.log(`${a} + ${b} = ${sum} (settled in ${sim.tick - before.tick} ticks)`);
     }
     ```
@@ -92,8 +100,8 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
       for (let b = 0; b < 16; b++) {
         for (const carryIn of [0, 1] as const) {
           sim = sim.set({ ...operandPins("a", a), ...operandPins("b", b), carryIn }).run();
-          const o = sim.readAll();
-          const sum = [o.s0, o.s1, o.s2, o.s3, o.carryOut].reduce<number>((acc, bit, i) => acc + Number(bit) * 2 ** i, 0);
+          const { s0, s1, s2, s3, carryOut } = sim.readAll();
+          const sum = [s0, s1, s2, s3, carryOut].reduce<number>((total, bit, i) => total + Number(bit) * 2 ** i, 0);
           if (sum !== a + b + carryIn) throw new Error(`${a} + ${b} + ${carryIn} gave ${sum}`);
         }
       }
@@ -104,7 +112,7 @@ This tutorial builds a four-bit ripple-carry adder from the standard [`FullAdder
   </Step>
 
   <Step title="Look inside">
-    [`elaborate()`](/reference/elaborate) flattens the hierarchy into primitive gates:
+    [`elaborate()`](/reference/elaborate) flattens the hierarchy into primitive gates. The instance names `fa0` through `fa3` let you tell which stage a gate belongs to. For example, the final carry comes from the NAND inside the last stage's OR:
 
     ```ts
     const netlist = elaborate(Adder4); // import { elaborate } from "@pbzona/wires"

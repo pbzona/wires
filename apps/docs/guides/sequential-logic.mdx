@@ -16,17 +16,17 @@ import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
-  ({ inputs, add, feed, output }) => {
-    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
-    const bottom = add(NAND, "bottom", { a: inputs.resetN, b: top.outputs.out });
-    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
-    output("q", top.outputs.out);
-    output("qBar", bottom.outputs.out);
+  (chip) => {
+    const qGate = chip.add(NAND, { a: chip.inputs.setN });
+    const qBarGate = chip.add(NAND, { a: chip.inputs.resetN, b: qGate.outputs.out });
+    chip.feed(qGate.inputs.b, qBarGate.outputs.out);
+    chip.output("q", qGate.outputs.out);
+    chip.output("qBar", qBarGate.outputs.out);
   },
 );
 ```
 
-`top` needs `bottom`'s output, but `bottom` doesn't exist yet when `top` is added. So `top`'s input `b` is left out of the `add` call and wired afterwards with [`feed`](/guides/composing-circuits#feedback). Each part feeds the other, and that loop is what lets the latch remember.
+The NAND that drives `q` needs a signal from the NAND that drives `qBar`. When `chip.add` creates `qGate`, that second gate doesn't exist yet, so leave `b` unwired. Once both gates exist, [`chip.feed`](/guides/composing-circuits#feedback) connects `qBarGate.outputs.out` back to `qGate.inputs.b`. Each gate now feeds the other, and that loop is what lets the latch remember.
 
 ## Storing a bit
 
@@ -87,12 +87,12 @@ An odd number of inverters in a loop has no stable state. This ring oscillator g
 import { circuit, simulate, StabilizationError } from "@pbzona/wires";
 import { NAND, NOT } from "@pbzona/wires/components";
 
-const Ring = circuit({ name: "Ring", inputs: ["enable"], outputs: ["out"] }, ({ inputs, add, feed, output }) => {
-  const gate = add(NAND, "gate", { a: inputs.enable }); // b is fed back from inv2
-  const inv1 = add(NOT, "inv1", { a: gate.outputs.out });
-  const inv2 = add(NOT, "inv2", { a: inv1.outputs.out });
-  feed(gate.inputs.b, inv2.outputs.out);
-  output("out", inv2.outputs.out);
+const Ring = circuit({ name: "Ring", inputs: ["enable"], outputs: ["out"] }, (chip) => {
+  const gate = chip.add(NAND, "gate", { a: chip.inputs.enable });
+  const inv1 = chip.add(NOT, "inv1", { a: gate.outputs.out });
+  const inv2 = chip.add(NOT, "inv2", { a: inv1.outputs.out });
+  chip.feed(gate.inputs.b, inv2.outputs.out);
+  chip.output("out", inv2.outputs.out);
 });
 
 const still = simulate(Ring, { maxTicks: 100, trace: true }).set({ enable: 0 }).run(); // stable, out = 1
@@ -108,11 +108,12 @@ try {
 console.log(running.set({ enable: 0 }).run().read("out")); // 1: stopped, and settled again
 
 // Step through the oscillation and watch the output
-let s = running;
-for (let i = 0; i < 12; i++) s = s.step();
-console.log(s.trace().filter((t) => t.wire === "root.inv2.g.outputs.out").map((t) => `@${t.tick}: ${t.value}`));
+let stepped = running;
+for (let i = 0; i < 12; i++) stepped = stepped.step();
+const outputChanges = stepped.trace().filter((change) => change.wire === "root.inv2.g.outputs.out");
+console.log(outputChanges.map((change) => `@${change.tick}: ${change.value}`));
 ```
 
-With three one-tick stages, the output toggles every three ticks. Step through it with `step()` and read the timing from `trace()`.
+With three one-tick stages, the output toggles every three ticks. The instance name `inv2` lets you find the last inverter in the trace: `root.inv2.g.outputs.out` is the output of the NAND named `g` inside that standard NOT.
 
 If you never set `enable`, the loop stays at `"X"`. That's a stable unknown, not an oscillation, because nothing ever changes.

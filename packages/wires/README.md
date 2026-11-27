@@ -102,39 +102,30 @@ zero inputs (a constant source).
 import { circuit, simulate } from "@pbzona/wires";
 import { NAND } from "@pbzona/wires/components";
 
-const NOT = circuit(
-  { name: "NOT", inputs: ["a"], outputs: ["out"] },
-  ({ inputs, add, output }) => {
-    const g = add(NAND, "g", { a: inputs.a, b: inputs.a });
-    output("out", g.outputs.out);
+const ReadyLight = circuit(
+  { name: "ReadyLight", inputs: ["busy"], outputs: ["lit"] },
+  (chip) => {
+    const busy = chip.inputs.busy;
+    const inverter = chip.add(NAND, { a: busy, b: busy });
+    chip.output("lit", inverter.outputs.out);
   },
 );
 
-const AND = circuit(
-  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
-  ({ inputs, add, output }) => {
-    const nand = add(NAND, "nand", { a: inputs.a, b: inputs.b });
-    const not = add(NOT, "not", { a: nand.outputs.out }); // composites are added exactly like primitives
-    output("out", not.outputs.out);
-  },
-);
-
-let sim = simulate(AND);
-sim = sim.set({ a: 1, b: 1 }).run();
-sim.read("out"); // 1
-sim = sim.set({ a: 0 }).run();
-sim.read("out"); // 0
+const idle = simulate(ReadyLight).set({ busy: 0 }).run();
+idle.read("lit"); // 1: the ready light is on
 ```
 
-Each line adds one part and says what feeds it, so signals flow from top to
-bottom. Every wiring call reads **destination ← source**, like an assignment.
+A primitive computes signal values; a circuit connects wires. Here `chip` is
+our builder for `ReadyLight`. Both NAND inputs get the `busy` wire, so the
+gate inverts it. Its `out` pin drives the light's `lit` pin. Every wiring
+call reads **destination ← source**, like an assignment.
 
-| Member                                      | Purpose                                                                |
-| ------------------------------------------- | ---------------------------------------------------------------------- |
-| `inputs`                                    | the circuit's own inputs, used as sources for the parts you add        |
-| `add(definition, name?, { input: source })` | add a part and wire its inputs; unnamed parts get `"<Definition>#<n>"` |
-| `feed(part.inputs.x, source)`               | wire an input later, which is how feedback loops are made              |
-| `output(name, source)`                      | drive one of the circuit's own outputs                                 |
+| Member                                           | Purpose                                                                |
+| ------------------------------------------------ | ---------------------------------------------------------------------- |
+| `chip.inputs`                                    | the circuit's own inputs, used as sources for the parts you add        |
+| `chip.add(definition, name?, { input: source })` | add a part and wire its inputs; unnamed parts get `"<Definition>#<n>"` |
+| `chip.feed(part.inputs.x, source)`               | wire an input later, which is how feedback loops are made              |
+| `chip.output(name, source)`                      | drive one of the circuit's own outputs                                 |
 
 Sources are the circuit's inputs and the outputs of parts it added. One source
 can feed any number of inputs, but each input has exactly one source. Using a
@@ -142,7 +133,7 @@ part's input as a source, or misspelling a declared name, is a compile-time
 error. The builder also checks connections at runtime, including the bounds
 of numbered pins.
 
-Feedback needs `feed`, because a part's input can't be wired to something that
+Feedback needs `chip.feed`, because a part's input can't be wired to something that
 hasn't been added yet:
 
 ```ts
@@ -151,15 +142,15 @@ import { NAND } from "@pbzona/wires/components";
 
 const SRLatch = circuit(
   { name: "SRLatch", inputs: ["setN", "resetN"], outputs: ["q", "qBar"] },
-  ({ inputs, add, feed, output }) => {
-    const top = add(NAND, "top", { a: inputs.setN }); // b is fed back below
-    const bottom = add(NAND, "bottom", {
-      a: inputs.resetN,
+  (chip) => {
+    const top = chip.add(NAND, "top", { a: chip.inputs.setN }); // b is fed back below
+    const bottom = chip.add(NAND, "bottom", {
+      a: chip.inputs.resetN,
       b: top.outputs.out,
     });
-    feed(top.inputs.b, bottom.outputs.out); // the feedback wire
-    output("q", top.outputs.out);
-    output("qBar", bottom.outputs.out);
+    chip.feed(top.inputs.b, bottom.outputs.out); // the feedback wire
+    chip.output("q", top.outputs.out);
+    chip.output("qBar", bottom.outputs.out);
   },
 );
 ```
@@ -173,9 +164,9 @@ contain itself.
 
 In `circuit()` (not `gate()`), `bits("d", 8)` declares individual pins `d0`
 through `d7`. Mix groups with named scalars: `[bits("d", 8), "clock", "load"]`.
-In the builder, `inputs.d[3]` and `inputs.d3` refer to the same source. A parent
+In the builder, `chip.inputs.d[3]` and `chip.inputs.d3` refer to the same source. A parent
 can connect one register to another with `{ d: first.outputs.q, clock, load }`;
-`output("q", sources)` publishes a whole group in index order. Both operations
+`chip.output("q", sources)` publishes a whole group in index order. Both operations
 require one source per bit. Group names and expanded pin names cannot collide.
 
 The group is not an integer-valued signal. Simulation and inspection still use
@@ -195,18 +186,18 @@ const Adder4 = circuit(
     inputs: ["a0", "a1", "a2", "a3", "b0", "b1", "b2", "b3", "carryIn"],
     outputs: ["s0", "s1", "s2", "s3", "carryOut"],
   },
-  ({ inputs, add, output }) => {
-    let carry: SourcePort = inputs.carryIn;
+  (chip) => {
+    let carry: SourcePort = chip.inputs.carryIn;
     for (const i of [0, 1, 2, 3] as const) {
-      const fa = add(FullAdder, `fa${i}`, {
-        a: inputs[`a${i}`],
-        b: inputs[`b${i}`],
+      const fa = chip.add(FullAdder, `fa${i}`, {
+        a: chip.inputs[`a${i}`],
+        b: chip.inputs[`b${i}`],
         carryIn: carry,
       });
-      output(`s${i}`, fa.outputs.sum);
+      chip.output(`s${i}`, fa.outputs.sum);
       carry = fa.outputs.carryOut;
     }
-    output("carryOut", carry);
+    chip.output("carryOut", carry);
   },
 );
 
@@ -248,16 +239,16 @@ and every method that moves the simulation forward returns a _new_ state. The
 state you called it on never changes:
 
 ```ts
-const start = simulate(AND, { maxTicks: 10_000, trace: false }); // defaults shown
-const assigned = start.set({ a: 1, b: 1 }); // a new state; start is untouched
+const start = simulate(ReadyLight, { maxTicks: 10_000, trace: false }); // defaults shown
+const assigned = start.set({ busy: 0 }); // a new state; start is untouched
 const settled = assigned.run(); // another new state
-settled.read("out"); // 1
-start.read("out"); // still "X"
+settled.read("lit"); // 1
+start.read("lit"); // still "X"
 ```
 
 Write it step by step with `let sim = ...; sim = sim.set(...).run();`, or keep
 the states you care about and branch from them. Forgetting to reassign is the
-one mistake to watch for: a bare `sim.set({ a: 1 })` returns a new state and
+one mistake to watch for: a bare `sim.set({ busy: 1 })` returns a new state and
 leaves `sim` as it was.
 
 | Member                     | Behavior                                                                                        |
@@ -308,6 +299,8 @@ component has a stable hierarchical id (`root`, `root.not`, `root.not.g`), its
 children and connections.
 
 ```ts
+import { AND } from "@pbzona/wires/components";
+
 AND.describe().connections;
 // [{ source: "root.inputs.a", destination: "root.nand.inputs.a" }, ...]
 ```

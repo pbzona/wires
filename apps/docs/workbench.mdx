@@ -33,9 +33,9 @@ import { NOR } from "@pbzona/wires/components";
 
 export const BothLow = circuit(
   { name: "BothLow", inputs: ["left", "right"], outputs: ["out"] },
-  ({ inputs, add, output }) => {
-    const nor = add(NOR, "nor", { a: inputs.left, b: inputs.right });
-    output("out", nor.outputs.out);
+  (chip) => {
+    const nor = chip.add(NOR, { a: chip.inputs.left, b: chip.inputs.right });
+    chip.output("out", nor.outputs.out);
   },
 );
 ```
