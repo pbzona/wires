@@ -1,11 +1,22 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { simulate } from "@pbzona/wires";
 import { AND, NAND, XOR } from "@pbzona/wires/components";
 import { describe, expect, it } from "vitest";
 import { compileDraft, exampleDraft, generateSource, removePart, renamePart, validIdentifier, type Draft, type Entry } from "../src/model.js";
+
+function typecheckSavedFiles(dir: string): void {
+  writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({
+    compilerOptions: { module: "NodeNext", target: "ES2022", strict: true, noUncheckedIndexedAccess: true,
+      noUnusedLocals: true, noUnusedParameters: true, skipLibCheck: true, types: [], rootDir: ".", outDir: "dist" },
+    include: ["chips", "examples"],
+  }));
+  const tsc = fileURLToPath(new URL("./bin/tsc", import.meta.resolve("typescript/package.json")));
+  const compile = spawnSync(process.execPath, [tsc, "-p", "."], { cwd: dir, encoding: "utf8" });
+  expect(compile.status, compile.stdout + compile.stderr).toBe(0);
+}
 
 const components = "@pbzona/wires/components";
 const standard: Entry[] = [XOR, AND].map((definition) => ({
@@ -30,6 +41,43 @@ it("starts with a working half adder made from the standard chips, not a similar
   draft.connections.reverse();
   expect(generateSource(draft, entries)).toBe(source);
   expect(() => exampleDraft(entries.filter((entry) => entry.id !== "std:XOR"))).toThrow(/standard.*XOR/i);
+});
+
+it("wires a grouped palette chip through flat pins in the live draft and saved source", async () => {
+  const dir = mkdtempSync(join(fileURLToPath(new URL("../", import.meta.url)), ".model-test-"));
+  try {
+    mkdirSync(join(dir, "chips"));
+    const chipPath = join(dir, "chips/Swap.ts");
+    writeFileSync(chipPath, `
+      import { bits, circuit } from "@pbzona/wires";
+      export const Swap = circuit({ name: "Swap", inputs: [bits("d", 2)], outputs: [bits("q", 2)] }, ({ inputs, output }) => {
+        output("q", [inputs.d[1]!, inputs.d[0]!]);
+      });
+    `);
+    const { Swap } = await import(pathToFileURL(chipPath).href);
+    const entry: Entry = { id: "swap", group: "Mine", definition: Swap, exportName: "Swap", from: "./Swap.js" };
+    const draft: Draft = {
+      name: "Wrapper", inputs: ["a", "b"], outputs: ["x", "y"],
+      parts: [{ id: "left", entry: entry.id, x: 0, y: 0 }, { id: "right", entry: entry.id, x: 100, y: 0 }],
+      connections: [
+        { source: "inputs.a", destination: "left.inputs.d0" },
+        { source: "right.outputs.q1", destination: "left.inputs.d1" }, // later source: emitted as feed()
+        { source: "inputs.b", destination: "right.inputs.d0" },
+        { source: "inputs.a", destination: "right.inputs.d1" },
+        { source: "left.outputs.q0", destination: "outputs.x" },
+        { source: "left.outputs.q1", destination: "outputs.y" },
+      ],
+    };
+    expect(simulate(compileDraft(draft, [entry])).set({ a: 1, b: 0 }).run().readAll()).toEqual({ x: 0, y: 1 });
+    const source = generateSource(draft, [entry]);
+    expect(source).toContain('add(Swap, "right", { d0: inputs.b, d1: inputs.a })');
+    expect(source).toContain('feed(left.inputs.d1!, right.outputs.q1!)');
+    expect(source).toContain('output("x", left.outputs.q0!)');
+    writeFileSync(join(dir, "chips/Wrapper.ts"), source);
+    typecheckSavedFiles(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 it("wraps wide pin lists and wiring maps in the source drawer", () => {
@@ -163,14 +211,7 @@ it("type-checks and runs the saved module with real imports, including name coll
     writeFileSync(join(dir, "chips/circuit.ts"), source);
     writeFileSync(join(dir, "chips/Cell.ts"), `export { NAND as feed } from "${components}";`);
     writeFileSync(join(dir, "examples/Cell.ts"), `export { AND as feed } from "${components}";`);
-    writeFileSync(join(dir, "tsconfig.json"), JSON.stringify({
-      compilerOptions: { module: "NodeNext", target: "ES2022", strict: true, noUnusedLocals: true,
-        noUnusedParameters: true, skipLibCheck: true, types: [], rootDir: ".", outDir: "dist" },
-      include: ["chips", "examples"],
-    }));
-    const tsc = fileURLToPath(new URL("./bin/tsc", import.meta.resolve("typescript/package.json")));
-    const compile = spawnSync(process.execPath, [tsc, "-p", "."], { cwd: dir, encoding: "utf8" });
-    expect(compile.status, compile.stdout + compile.stderr).toBe(0);
+    typecheckSavedFiles(dir);
 
     writeFileSync(join(dir, "run.mjs"), `
       import { circuit as saved } from "./dist/chips/circuit.js";

@@ -182,6 +182,11 @@ export function generateSource(draft: Draft, entries: readonly Entry[]): string 
     lines.push(`import { ${names.join(", ")} } from ${quote(from)};`);
   }
 
+  // Group members are indexed names (e.g. `q${number}`) in TypeScript. prepare()
+  // checked that this exact pin exists, even under noUncheckedIndexedAccess.
+  const pinAccess = (pin: string, groups: Readonly<Record<string, readonly string[]>>) =>
+    Object.values(groups).some(members => members.includes(pin)) ? `${pin}!` : pin;
+
   // Emit a const for add() only if a wire needs that handle later.
   const referenced = new Set<number>();
   let usesInputs = false;
@@ -191,7 +196,7 @@ export function generateSource(draft: Draft, entries: readonly Entry[]): string 
       return `inputs.${pin}`;
     }
     referenced.add(part);
-    return `${handles[part]}.outputs.${pin}`;
+    return `${handles[part]}.outputs.${pinAccess(pin, parts[part]!.entry.definition.outputGroups)}`;
   };
   const calls = parts.map(({ id, inline }, part) => ({
     start: `add(${chips[part]}, ${quote(id)}`,
@@ -199,7 +204,7 @@ export function generateSource(draft: Draft, entries: readonly Entry[]): string 
   }));
   const later = feedback.map(({ part, pin, source }) => {
     referenced.add(part);
-    return `feed(${handles[part]}.inputs.${pin}, ${read(source)});`;
+    return `feed(${handles[part]}.inputs.${pinAccess(pin, parts[part]!.entry.definition.inputGroups)}, ${read(source)});`;
   });
   const drive = outputs.map(({ pin, source }) => `output(${quote(pin)}, ${read(source)});`);
   const methods = [usesInputs && "inputs", calls.length && "add", later.length && "feed", drive.length && "output"].filter(Boolean);
