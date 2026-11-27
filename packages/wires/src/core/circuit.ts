@@ -73,8 +73,10 @@ const RESERVED_INSTANCE_NAMES = new Set(["inputs", "outputs"]);
  * Defines a composite circuit built from other components.
  *
  * The builder callback runs immediately, exactly once, and the result is
- * validated before `circuit()` returns, so mistakes are reported where the
- * circuit is defined. A circuit can only contain definitions that already
+ * validated before `circuit()` returns, so most mistakes are reported where the
+ * circuit is defined. A wire loop through pass-through parts (one with no gate
+ * on it) is the exception: it is only caught when the circuit is elaborated or
+ * simulated. A circuit can only contain definitions that already
  * exist, which also means a circuit can never contain itself.
  *
  * ```ts
