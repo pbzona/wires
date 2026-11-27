@@ -28,7 +28,7 @@ import { FullAdder, Mux, NAND, SRLatch, XOR } from "@pbzona/wires/components";
 
 ## Unknown values
 
-Because these components are pure NAND networks, they inherit NAND's handling of `"X"`. That is sometimes more pessimistic than the ideal truth table. For example, `Mux` outputs `"X"` when `select` is `"X"`, even if `a` and `b` are equal. This is deliberate. It's what the gate-level circuit would actually compute.
+The simulator evaluates each NAND rather than using an ideal truth table. In the [Mux](/library/routing#mux), two `0` data inputs force both selection NANDs to output `1`, so the final NAND outputs `0` regardless of `select`. Two `1` data inputs don't force either selection NAND: if `select` is `"X"`, the output settles to `"X"`, not `1`.
 
 ## Timing
 

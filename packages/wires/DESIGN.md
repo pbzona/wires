@@ -113,5 +113,5 @@ the same inputs. Copying one array per step is negligible at learning scale.
   tick, the ticks executed, recent transitions, and the gate paths involved.
   `run()` keeps a bounded buffer of recent transitions even when tracing is off.
 - **X pessimism.** Standard components are pure NAND networks, so they inherit
-  NAND's X propagation. For example, the multiplexer gives `X` when `select` is
-  `X`, even if `a === b`.
+  NAND's X propagation. With an unknown `select`, the multiplexer settles to `0`
+  when both data inputs are `0`, and to `"X"` otherwise.

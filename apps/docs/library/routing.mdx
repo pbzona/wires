@@ -12,7 +12,7 @@ Selects one of two inputs: `out = a` when `select = 0`, and `out = b` when `sele
 | --- | --- |
 | 0 | a |
 | 1 | b |
-| X | X, unless both data paths are forced (for example `a = b = 0`) |
+| X | `0` if both `a` and `b` are `0`; `"X"` otherwise |
 
 ```ts
 import { simulate } from "@pbzona/wires";

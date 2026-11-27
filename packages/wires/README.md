@@ -395,8 +395,8 @@ Everything except `NAND` is built from NAND gates through the public
 | `SRLatch`                         | setN, resetN  | q, qBar       | active-low cross-coupled NANDs |
 | `RegisterBit`                     | d, clock, load | q            | rising edge, active-high load  |
 
-Because these are NAND networks, they inherit NAND's pessimistic handling of
-`X`. For example, `Mux` gives `X` when `select` is `X`, even if `a === b`.
+With `select` set to `"X"`, `Mux` settles to `0` if both data inputs are `0`.
+In every other case it settles to `"X"`, even when both inputs are `1`.
 
 ## Examples
 
