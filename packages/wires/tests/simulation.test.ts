@@ -144,6 +144,7 @@ describe("simulation states", () => {
     expect(() => sim.set({ c: 1 } as never)).toThrow(new SimulationError('Unknown input "c" (inputs are a, b)'));
     expect(() => sim.set({ a: true } as never)).toThrow(/Invalid signal for input "a": true/);
     expect(() => sim.set({ a: 2 } as never)).toThrow(/Invalid signal for input "a": 2/);
+    expect(() => sim.set({ a: -0 } as never)).toThrow(/Invalid signal for input "a": -0 /);
     expect(() => sim.set({ a: 1, b: "x" } as never)).toThrow(/Invalid signal for input "b": "x"/);
     expect(() => sim.read("nope" as never)).toThrow(/Unknown output "nope" \(outputs are out\)/);
     expect(() => simulate(AND, { maxTicks: 0 })).toThrow(/maxTicks must be a positive integer/);

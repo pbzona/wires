@@ -14,7 +14,8 @@ export const SIGNALS: readonly Signal[] = Object.freeze([0, 1, "X"] as const);
 
 /** True when `value` is one of `0`, `1` or `"X"`. */
 export function isSignal(value: unknown): value is Signal {
-  return value === 0 || value === 1 || value === "X";
+  // Object.is rejects -0, which `=== 0` would let through and store on a wire.
+  return Object.is(value, 0) || value === 1 || value === "X";
 }
 
 /** A recorded change of one wire's value at one simulation tick. */
@@ -30,6 +31,7 @@ export type SignalTransition = {
 export function describeValue(value: unknown): string {
   if (typeof value === "string") return JSON.stringify(value);
   if (typeof value === "bigint") return `${value}n`;
+  if (Object.is(value, -0)) return "-0";
   if (value === null || typeof value !== "object") return String(value);
   try {
     return JSON.stringify(value);
