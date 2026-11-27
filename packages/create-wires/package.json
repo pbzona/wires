@@ -1,6 +1,6 @@
 {
   "name": "@pbzona/create-wires",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create a local TypeScript workbench for building circuits with wires.",
   "license": "MIT",
   "author": "Phil Zona",

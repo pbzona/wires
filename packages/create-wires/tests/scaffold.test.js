@@ -23,7 +23,7 @@ test("creates a standalone project in a new directory, without installing anythi
   const root = join(dir, "My-Lab");
   const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   assert.equal(manifest.name, "my-lab");
-  assert.deepEqual(manifest.dependencies, { "@pbzona/wires": "^0.1.0", "@pbzona/wires-editor": "^0.1.0" });
+  assert.deepEqual(manifest.dependencies, { "@pbzona/wires": "^0.2.0", "@pbzona/wires-editor": "^0.2.0" });
   const files = await readdir(root);
   for (const name of ["chips", "examples", "src", "index.html", "vite.config.ts", "README.md", ".gitignore"]) {
     assert.ok(files.includes(name), `missing ${name}`);

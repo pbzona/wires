@@ -1,6 +1,6 @@
 {
   "name": "@pbzona/wires",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A human-readable TypeScript toolkit for learning digital logic by building it from NAND gates up.",
   "keywords": [
     "digital-logic",

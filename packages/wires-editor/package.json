@@ -1,6 +1,6 @@
 {
   "name": "@pbzona/wires-editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A framework-neutral circuit workbench for @pbzona/wires.",
   "keywords": ["digital-logic", "circuit-editor", "circuit-simulator", "education", "canvas"],
   "license": "MIT",
@@ -28,7 +28,7 @@
     "prepack": "pnpm build",
     "prepublishOnly": "pnpm typecheck && pnpm test"
   },
-  "peerDependencies": { "@pbzona/wires": "^0.1.0" },
+  "peerDependencies": { "@pbzona/wires": "^0.2.0" },
   "devDependencies": {
     "@pbzona/wires": "workspace:*",
     "@types/node": "^24.19.2",
