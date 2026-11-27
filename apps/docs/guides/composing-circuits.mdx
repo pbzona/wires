@@ -11,8 +11,8 @@ import { circuit, simulate } from "@pbzona/wires";
 import { NAND } from "@pbzona/wires/components";
 
 const NOT = circuit({ name: "NOT", inputs: ["a"], outputs: ["out"] }, (chip) => {
-  const tiedNand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.a });
-  chip.output("out", tiedNand.outputs.out);
+  const nand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.a });
+  chip.output("out", nand.outputs.out);
 });
 
 const AND = circuit({ name: "AND", inputs: ["a", "b"], outputs: ["out"] }, (chip) => {

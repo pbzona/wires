@@ -102,23 +102,32 @@ zero inputs (a constant source).
 import { circuit, simulate } from "@pbzona/wires";
 import { NAND } from "@pbzona/wires/components";
 
-const ReadyLight = circuit(
-  { name: "ReadyLight", inputs: ["busy"], outputs: ["lit"] },
+const NOT = circuit(
+  { name: "NOT", inputs: ["a"], outputs: ["out"] },
   (chip) => {
-    const busy = chip.inputs.busy;
-    const inverter = chip.add(NAND, { a: busy, b: busy });
-    chip.output("lit", inverter.outputs.out);
+    const nand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.a });
+    chip.output("out", nand.outputs.out);
   },
 );
 
-const idle = simulate(ReadyLight).set({ busy: 0 }).run();
-idle.read("lit"); // 1: the ready light is on
+const AND = circuit(
+  { name: "AND", inputs: ["a", "b"], outputs: ["out"] },
+  (chip) => {
+    const nand = chip.add(NAND, { a: chip.inputs.a, b: chip.inputs.b });
+    const inverter = chip.add(NOT, { a: nand.outputs.out });
+    chip.output("out", inverter.outputs.out);
+  },
+);
+
+const sim = simulate(AND).set({ a: 1, b: 1 }).run();
+sim.read("out"); // 1
 ```
 
-A primitive computes signal values; a circuit connects wires. Here `chip` is
-our builder for `ReadyLight`. Both NAND inputs get the `busy` wire, so the
-gate inverts it. Its `out` pin drives the light's `lit` pin. Every wiring
-call reads **destination ← source**, like an assignment.
+A primitive computes signal values; a circuit connects wires. In NOT, both
+NAND inputs get the same wire, so the gate inverts `a`. In AND, the NOT you
+just built inverts the NAND's result. Every wiring call reads
+**destination ← source**: `chip.output("out", inverter.outputs.out)` connects
+AND's `out` pin to the `out` pin of its inverter.
 
 | Member                                           | Purpose                                                                |
 | ------------------------------------------------ | ---------------------------------------------------------------------- |
@@ -239,16 +248,16 @@ and every method that moves the simulation forward returns a _new_ state. The
 state you called it on never changes:
 
 ```ts
-const start = simulate(ReadyLight, { maxTicks: 10_000, trace: false }); // defaults shown
-const assigned = start.set({ busy: 0 }); // a new state; start is untouched
+const start = simulate(AND, { maxTicks: 10_000, trace: false }); // defaults shown
+const assigned = start.set({ a: 1, b: 1 }); // a new state; start is untouched
 const settled = assigned.run(); // another new state
-settled.read("lit"); // 1
-start.read("lit"); // still "X"
+settled.read("out"); // 1
+start.read("out"); // still "X"
 ```
 
 Write it step by step with `let sim = ...; sim = sim.set(...).run();`, or keep
 the states you care about and branch from them. Forgetting to reassign is the
-one mistake to watch for: a bare `sim.set({ busy: 1 })` returns a new state and
+one mistake to watch for: a bare `sim.set({ b: 0 })` returns a new state and
 leaves `sim` as it was.
 
 | Member                     | Behavior                                                                                        |
@@ -296,7 +305,8 @@ Because states never change:
 **Topology.** `definition.describe()` returns a serializable tree. Each
 component has a stable hierarchical id (`root`, `root.not`, `root.not.g`), its
 `parent`, `definition` name, `kind` (`"primitive"` or `"composite"`), ports,
-children and connections.
+children and connections. The examples below inspect the standard library's
+AND, which names its parts `nand` and `not` so you can recognize their paths.
 
 ```ts
 import { AND } from "@pbzona/wires/components";
